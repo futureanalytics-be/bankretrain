@@ -208,16 +208,16 @@ jobs:
 
       - name: Confirm AML workspace is ready
         run: |
-          az config set extension.dynamic_install_allow_preview=true
           AML_WS="${{ needs.deploy-ml-rg.outputs.amlWorkspaceName }}"
           MAX_ATTEMPTS=12
           ATTEMPT=1
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-            STATE=$(az ml workspace show \
-              --name $AML_WS \
+            STATE=$(az resource show \
               --resource-group ${{ env.ML_RESOURCE_GROUP }} \
-              --query "provisioningState" \
-              --output tsv 2>&1)
+              --resource-type "Microsoft.MachineLearningServices/workspaces" \
+              --name "$AML_WS" \
+              --query "properties.provisioningState" \
+              --output tsv 2>/dev/null)
             if [ "$STATE" = "Succeeded" ]; then
               echo "AML workspace $AML_WS is ready"
               exit 0
