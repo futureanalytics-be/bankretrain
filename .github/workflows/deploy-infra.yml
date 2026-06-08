@@ -23,6 +23,10 @@ on:
           - dev
           - prod
 
+permissions:
+  id-token: write   # required for OIDC federated auth
+  contents: read
+
 # Prevent concurrent deployments to the same environment
 concurrency:
   group: deploy-${{ github.event.inputs.environment || 'dev' }}
