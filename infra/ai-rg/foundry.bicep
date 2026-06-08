@@ -18,7 +18,7 @@ var lawName = 'bankretain-ai-law-${environment}-${take(suffix, 8)}'
 var storageAccountName = 'bankretainai${environment}${take(suffix, 8)}'
 var foundryHubName = 'bankretain-hub-${environment}-${take(suffix, 8)}'
 var foundryProjectName = 'bankretain-project'
-var keyVaultName = 'bankretain-kv-ai-${take(suffix, 8)}'
+var keyVaultName = 'bankretain-kv-ai-${take(suffix, 6)}'
 
 // ---------------------------------------------------------------------------
 // Log Analytics (for Foundry diagnostics)

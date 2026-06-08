@@ -8,7 +8,7 @@ var suffix = uniqueString(resourceGroup().id)
 var sqlServerName = 'bankretain-sql-${environment}-${suffix}'
 var sqlDbName = 'bankretaindb'
 var storageAccountName = 'bankretainst${environment}${take(suffix, 8)}'
-var keyVaultName = 'bankretain-kv-ml-${take(suffix, 8)}'
+var keyVaultName = 'bankretain-kv-ml-${take(suffix, 6)}'
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: storageAccountName
