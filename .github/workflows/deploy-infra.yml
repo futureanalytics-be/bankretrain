@@ -210,22 +210,27 @@ jobs:
         run: |
           az config set extension.dynamic_install_allow_preview=true
           AML_WS="${{ needs.deploy-ml-rg.outputs.amlWorkspaceName }}"
-          MAX_RETRIES=12
-          RETRY_DELAY=10
-          for i in $(seq 1 $MAX_RETRIES); do
+          MAX_ATTEMPTS=12
+          ATTEMPT=1
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
             STATE=$(az ml workspace show \
               --name $AML_WS \
               --resource-group ${{ env.ML_RESOURCE_GROUP }} \
               --query "provisioningState" \
-              --output tsv)
+              --output tsv 2>&1)
             if [ "$STATE" = "Succeeded" ]; then
-              echo "AML workspace $AML_WS is ready (state: $STATE)"
+              echo "AML workspace $AML_WS is ready"
               exit 0
+            elif [ -z "$STATE" ] || [ "$STATE" = "null" ]; then
+              echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: state not yet available, retrying in 10s..."
+              sleep 10
+              ATTEMPT=$((ATTEMPT + 1))
+            else
+              echo "AML workspace in unexpected state: $STATE"
+              exit 1
             fi
-            echo "Attempt $i/$MAX_RETRIES: state='$STATE', retrying in ${RETRY_DELAY}s..."
-            [ $i -lt $MAX_RETRIES ] && sleep $RETRY_DELAY
           done
-          echo "AML workspace not in Succeeded state after $MAX_RETRIES attempts: $STATE"
+          echo "Timeout: AML workspace did not reach Succeeded state after $((MAX_ATTEMPTS * 10))s"
           exit 1
 
       - name: Post deployment summary
