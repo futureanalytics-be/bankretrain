@@ -11,7 +11,7 @@ targetScope = 'resourceGroup'
 param environment string = 'dev'
 
 @description('Azure region for all resources')
-param location string = 'swedencentral'
+param location string = 'switzerlandnorth'
 
 @description('Principal ID of the feature pipeline MI (from bankretain-ml-rg output) — needs Search Index Data Contributor')
 param featurePipelineMIPrincipalId string
@@ -53,7 +53,6 @@ module roles 'roles.bicep' = {
     githubActionsPrincipalId: githubActionsPrincipalId
     environment: environment
   }
-  dependsOn: [foundry, search]
 }
 
 // ---------------------------------------------------------------------------

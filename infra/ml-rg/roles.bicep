@@ -9,7 +9,6 @@ targetScope = 'resourceGroup'
 param amlWorkspacePrincipalId string       // AML workspace system-assigned MI
 param featurePipelineMIPrincipalId string  // Feature pipeline user-assigned MI
 param storageAccountName string
-param sqlServerName string
 param keyVaultName string
 param developerObjectId string             // Empty string in prod — key vault admin removed
 param githubActionsPrincipalId string
@@ -20,11 +19,9 @@ param environment string
 // ---------------------------------------------------------------------------
 
 var roleStorageBlobDataContributor = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
-var roleStorageBlobDataReader      = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')
 var roleKeyVaultSecretsUser        = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
 var roleKeyVaultAdministrator      = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '00482a5a-887f-4fb3-b363-3b7fe8e74483')
 var roleContributor                = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
-var roleAzureMLComputeOperator     = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'e503ece1-11d0-4e8e-8e2c-7a6c3bf38815')
 
 // ---------------------------------------------------------------------------
 // Reference existing resources by name
