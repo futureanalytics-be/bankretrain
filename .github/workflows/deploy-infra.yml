@@ -38,7 +38,7 @@ env:
   AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}          # GitHub Actions SP client ID
   ML_RESOURCE_GROUP: bankretain-ml-rg
   AI_RESOURCE_GROUP: bankretain-ai-rg
-  LOCATION: swedencentral
+  LOCATION: switzerlandnorth
   ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
 
 jobs:

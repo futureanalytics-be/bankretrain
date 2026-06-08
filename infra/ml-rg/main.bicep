@@ -12,7 +12,7 @@ targetScope = 'resourceGroup'
 param environment string = 'dev'
 
 @description('Azure region for all resources')
-param location string = 'swedencentral'
+param location string = 'switzerlandnorth'
 
 @description('Object ID of the developer Entra ID user — for Key Vault Administrator in dev')
 param developerObjectId string = ''
@@ -48,7 +48,6 @@ module roles 'roles.bicep' = {
     amlWorkspacePrincipalId: aml.outputs.amlWorkspacePrincipalId
     featurePipelineMIPrincipalId: aml.outputs.featurePipelineMIPrincipalId
     storageAccountName: sql.outputs.storageAccountName
-    sqlServerName: sql.outputs.sqlServerName
     keyVaultName: sql.outputs.keyVaultName
     developerObjectId: developerObjectId
     githubActionsPrincipalId: githubActionsPrincipalId
