@@ -1,0 +1,662 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.43.8.12551",
+      "templateHash": "6820665454097210516"
+    }
+  },
+  "parameters": {
+    "environment": {
+      "type": "string",
+      "defaultValue": "dev",
+      "metadata": {
+        "description": "Environment tag (dev | prod)"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "swedencentral",
+      "metadata": {
+        "description": "Azure region for all resources"
+      }
+    },
+    "developerObjectId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Object ID of the developer Entra ID user — for Key Vault Administrator in dev"
+      }
+    },
+    "githubActionsPrincipalId": {
+      "type": "string",
+      "metadata": {
+        "description": "Object ID of the GitHub Actions service principal — for Key Vault Secrets User"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "sql-deploy",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "developerObjectId": {
+            "value": "[parameters('developerObjectId')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "10313251546732567320"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "environment": {
+              "type": "string"
+            },
+            "developerObjectId": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "suffix": "[uniqueString(resourceGroup().id)]",
+            "sqlServerName": "[format('bankretain-sql-{0}-{1}', parameters('environment'), variables('suffix'))]",
+            "sqlDbName": "bankretaindb",
+            "storageAccountName": "[format('bankretainst{0}{1}', parameters('environment'), take(variables('suffix'), 8))]",
+            "keyVaultName": "[format('bankretain-kv-ml-{0}', take(variables('suffix'), 8))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-01-01",
+              "name": "[variables('storageAccountName')]",
+              "location": "[parameters('location')]",
+              "kind": "StorageV2",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "properties": {
+                "accessTier": "Hot",
+                "allowBlobPublicAccess": false,
+                "minimumTlsVersion": "TLS1_2",
+                "supportsHttpsTrafficOnly": true,
+                "networkAcls": {
+                  "defaultAction": "Allow"
+                }
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ml"
+              }
+            },
+            {
+              "type": "Microsoft.Sql/servers",
+              "apiVersion": "2023-02-01-preview",
+              "name": "[variables('sqlServerName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "version": "12.0",
+                "minimalTlsVersion": "1.2",
+                "publicNetworkAccess": "Enabled",
+                "administrators": {
+                  "administratorType": "ActiveDirectory",
+                  "azureADOnlyAuthentication": true,
+                  "login": "bankretain-developer",
+                  "sid": "[parameters('developerObjectId')]",
+                  "tenantId": "[subscription().tenantId]"
+                }
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ml"
+              }
+            },
+            {
+              "type": "Microsoft.Sql/servers/firewallRules",
+              "apiVersion": "2023-02-01-preview",
+              "name": "[format('{0}/{1}', variables('sqlServerName'), 'AllowAzureServices')]",
+              "properties": {
+                "startIpAddress": "0.0.0.0",
+                "endIpAddress": "0.0.0.0"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Sql/servers/databases",
+              "apiVersion": "2023-02-01-preview",
+              "name": "[format('{0}/{1}', variables('sqlServerName'), variables('sqlDbName'))]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "GP_S_Gen5_1",
+                "tier": "GeneralPurpose"
+              },
+              "properties": {
+                "collation": "SQL_Latin1_General_CP1_CI_AS",
+                "requestedBackupStorageRedundancy": "Local",
+                "useFreeLimit": true,
+                "freeLimitExhaustionBehavior": "AutoPause"
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2023-07-01",
+              "name": "[variables('keyVaultName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "tenantId": "[subscription().tenantId]",
+                "enableRbacAuthorization": true,
+                "enableSoftDelete": true,
+                "softDeleteRetentionInDays": 7,
+                "enabledForDeployment": false,
+                "enabledForDiskEncryption": false,
+                "enabledForTemplateDeployment": true,
+                "publicNetworkAccess": "Enabled"
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ml"
+              }
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-07-01",
+              "name": "[format('{0}/{1}', variables('keyVaultName'), 'sql-connection-string')]",
+              "properties": {
+                "value": "[format('Server=tcp:{0},1433;Initial Catalog={1};Authentication=Active Directory MSI;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;', reference(resourceId('Microsoft.Sql/servers', variables('sqlServerName')), '2023-02-01-preview').fullyQualifiedDomainName, variables('sqlDbName'))]",
+                "contentType": "text/plain"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+                "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "sqlServerName": {
+              "type": "string",
+              "value": "[variables('sqlServerName')]"
+            },
+            "sqlServerFqdn": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Sql/servers', variables('sqlServerName')), '2023-02-01-preview').fullyQualifiedDomainName]"
+            },
+            "sqlDatabaseName": {
+              "type": "string",
+              "value": "[variables('sqlDbName')]"
+            },
+            "storageAccountName": {
+              "type": "string",
+              "value": "[variables('storageAccountName')]"
+            },
+            "storageAccountId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+            },
+            "keyVaultName": {
+              "type": "string",
+              "value": "[variables('keyVaultName')]"
+            },
+            "keyVaultId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "aml-deploy",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "storageAccountName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sql-deploy'), '2025-04-01').outputs.storageAccountName.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "2201584621598200567"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "environment": {
+              "type": "string"
+            },
+            "storageAccountName": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "suffix": "[uniqueString(resourceGroup().id)]",
+            "logAnalyticsName": "[format('bankretain-law-{0}-{1}', parameters('environment'), take(variables('suffix'), 8))]",
+            "appInsightsName": "[format('bankretain-appi-{0}-{1}', parameters('environment'), take(variables('suffix'), 8))]",
+            "amlWorkspaceName": "[format('bankretain-aml-{0}-{1}', parameters('environment'), take(variables('suffix'), 8))]",
+            "featureStoreName": "[format('bankretain-fs-{0}-{1}', parameters('environment'), take(variables('suffix'), 8))]",
+            "featurePipelineMIName": "[format('bankretain-mi-featurepipeline-{0}', parameters('environment'))]",
+            "containerRegistryName": "[format('bankretaincr{0}{1}', parameters('environment'), take(variables('suffix'), 8))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2022-10-01",
+              "name": "[variables('logAnalyticsName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ml"
+              }
+            },
+            {
+              "type": "Microsoft.Insights/components",
+              "apiVersion": "2020-02-02",
+              "name": "[variables('appInsightsName')]",
+              "location": "[parameters('location')]",
+              "kind": "web",
+              "properties": {
+                "Application_Type": "web",
+                "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]",
+                "RetentionInDays": 30
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ml"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ContainerRegistry/registries",
+              "apiVersion": "2023-07-01",
+              "name": "[variables('containerRegistryName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Basic"
+              },
+              "properties": {
+                "adminUserEnabled": false
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ml"
+              }
+            },
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-01-31",
+              "name": "[variables('featurePipelineMIName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "purpose": "feature-pipeline-compute"
+              }
+            },
+            {
+              "type": "Microsoft.MachineLearningServices/workspaces",
+              "apiVersion": "2024-01-01-preview",
+              "name": "[variables('amlWorkspaceName')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "friendlyName": "BankRetain ML Workspace",
+                "description": "Azure ML workspace for BankRetain churn prediction pipeline",
+                "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+                "applicationInsights": "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+                "containerRegistry": "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
+                "publicNetworkAccess": "Enabled",
+                "v1LegacyMode": false
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ml"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+                "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.MachineLearningServices/workspaces",
+              "apiVersion": "2024-01-01-preview",
+              "name": "[variables('featureStoreName')]",
+              "location": "[parameters('location')]",
+              "kind": "FeatureStore",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "friendlyName": "BankRetain Feature Store",
+                "description": "Managed feature store ensuring training-serving consistency for churn model",
+                "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+                "applicationInsights": "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+                "publicNetworkAccess": "Enabled",
+                "featureStoreSettings": {
+                  "computeRuntime": {
+                    "sparkRuntimeVersion": "3.4"
+                  }
+                }
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ml",
+                "purpose": "feature-store"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "amlWorkspaceName": {
+              "type": "string",
+              "value": "[variables('amlWorkspaceName')]"
+            },
+            "amlWorkspaceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('amlWorkspaceName'))]"
+            },
+            "amlWorkspacePrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.MachineLearningServices/workspaces', variables('amlWorkspaceName')), '2024-01-01-preview', 'full').identity.principalId]"
+            },
+            "featureStoreName": {
+              "type": "string",
+              "value": "[variables('featureStoreName')]"
+            },
+            "featurePipelineMIName": {
+              "type": "string",
+              "value": "[variables('featurePipelineMIName')]"
+            },
+            "featurePipelineMIClientId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('featurePipelineMIName')), '2023-01-31').clientId]"
+            },
+            "featurePipelineMIPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('featurePipelineMIName')), '2023-01-31').principalId]"
+            },
+            "appInsightsConnectionString": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'sql-deploy')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "roles-deploy",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "amlWorkspacePrincipalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aml-deploy'), '2025-04-01').outputs.amlWorkspacePrincipalId.value]"
+          },
+          "featurePipelineMIPrincipalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aml-deploy'), '2025-04-01').outputs.featurePipelineMIPrincipalId.value]"
+          },
+          "storageAccountName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sql-deploy'), '2025-04-01').outputs.storageAccountName.value]"
+          },
+          "sqlServerName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sql-deploy'), '2025-04-01').outputs.sqlServerName.value]"
+          },
+          "keyVaultName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sql-deploy'), '2025-04-01').outputs.keyVaultName.value]"
+          },
+          "developerObjectId": {
+            "value": "[parameters('developerObjectId')]"
+          },
+          "githubActionsPrincipalId": {
+            "value": "[parameters('githubActionsPrincipalId')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "10767006499790571029"
+            }
+          },
+          "parameters": {
+            "amlWorkspacePrincipalId": {
+              "type": "string"
+            },
+            "featurePipelineMIPrincipalId": {
+              "type": "string"
+            },
+            "storageAccountName": {
+              "type": "string"
+            },
+            "sqlServerName": {
+              "type": "string"
+            },
+            "keyVaultName": {
+              "type": "string"
+            },
+            "developerObjectId": {
+              "type": "string"
+            },
+            "githubActionsPrincipalId": {
+              "type": "string"
+            },
+            "environment": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "roleStorageBlobDataContributor": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+            "roleStorageBlobDataReader": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
+            "roleKeyVaultSecretsUser": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
+            "roleKeyVaultAdministrator": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '00482a5a-887f-4fb3-b363-3b7fe8e74483')]",
+            "roleContributor": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+            "roleAzureMLComputeOperator": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'e503ece1-11d0-4e8e-8e2c-7a6c3bf38815')]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('featurePipelineMIPrincipalId'), variables('roleStorageBlobDataContributor'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleStorageBlobDataContributor')]",
+                "principalId": "[parameters('featurePipelineMIPrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "description": "Feature pipeline MI writes feature snapshots and batch scoring outputs"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('amlWorkspacePrincipalId'), variables('roleStorageBlobDataContributor'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleStorageBlobDataContributor')]",
+                "principalId": "[parameters('amlWorkspacePrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "description": "AML workspace MI reads/writes feature store artifacts and pipeline outputs"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('featurePipelineMIPrincipalId'), variables('roleKeyVaultSecretsUser'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleKeyVaultSecretsUser')]",
+                "principalId": "[parameters('featurePipelineMIPrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "description": "Feature pipeline MI reads SQL connection string at runtime"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('amlWorkspacePrincipalId'), variables('roleKeyVaultSecretsUser'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleKeyVaultSecretsUser')]",
+                "principalId": "[parameters('amlWorkspacePrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "description": "AML workspace MI reads secrets at runtime"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('githubActionsPrincipalId'), variables('roleKeyVaultSecretsUser'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleKeyVaultSecretsUser')]",
+                "principalId": "[parameters('githubActionsPrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "description": "GitHub Actions SP reads secrets for CI/CD pipelines"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(resourceGroup().id, parameters('githubActionsPrincipalId'), variables('roleContributor'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleContributor')]",
+                "principalId": "[parameters('githubActionsPrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "description": "GitHub Actions SP deploys Bicep templates to bankretain-ml-rg"
+              }
+            },
+            {
+              "condition": "[and(not(empty(parameters('developerObjectId'))), equals(parameters('environment'), 'dev'))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('developerObjectId'), variables('roleKeyVaultAdministrator'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleKeyVaultAdministrator')]",
+                "principalId": "[parameters('developerObjectId')]",
+                "principalType": "User",
+                "description": "Developer manages Key Vault secrets during initial setup — dev environment only"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'aml-deploy')]",
+        "[resourceId('Microsoft.Resources/deployments', 'sql-deploy')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "amlWorkspaceName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aml-deploy'), '2025-04-01').outputs.amlWorkspaceName.value]"
+    },
+    "featureStoreName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aml-deploy'), '2025-04-01').outputs.featureStoreName.value]"
+    },
+    "sqlServerFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sql-deploy'), '2025-04-01').outputs.sqlServerFqdn.value]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sql-deploy'), '2025-04-01').outputs.storageAccountName.value]"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'sql-deploy'), '2025-04-01').outputs.keyVaultName.value]"
+    },
+    "featurePipelineMIClientId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aml-deploy'), '2025-04-01').outputs.featurePipelineMIClientId.value]"
+    },
+    "featurePipelineMIPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aml-deploy'), '2025-04-01').outputs.featurePipelineMIPrincipalId.value]"
+    }
+  }
+}
