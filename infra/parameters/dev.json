@@ -1,0 +1,32 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "value": "dev"
+    },
+    "location": {
+      "value": "swedencentral"
+    },
+    "sqlAdminLogin": {
+      "value": "bankretainadmin"
+    },
+    "sqlAdminPassword": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/45a3c784-5e35-4769-b4ca-c9f373474aeb/resourceGroups/bankretain-ml-rg/providers/Microsoft.KeyVault/vaults/REPLACE_KV_NAME"
+        },
+        "secretName": "sql-admin-password"
+      }
+    },
+    "developerObjectId": {
+      "value": "7163f307-cf8b-49d3-b682-decffb9538c7"
+    },
+    "githubActionsPrincipalId": {
+      "value": "f8cbac00-7a1d-4e33-ae47-bf7c639dd65a"
+    },
+    "featurePipelineMIPrincipalId": {
+      "value": "REPLACE_AFTER_ML_RG_DEPLOY"
+    }
+  }
+}
