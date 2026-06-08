@@ -1,0 +1,522 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.43.8.12551",
+      "templateHash": "14749490876028694978"
+    }
+  },
+  "parameters": {
+    "environment": {
+      "type": "string",
+      "defaultValue": "dev",
+      "metadata": {
+        "description": "Environment tag (dev | prod)"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "swedencentral",
+      "metadata": {
+        "description": "Azure region for all resources"
+      }
+    },
+    "featurePipelineMIPrincipalId": {
+      "type": "string",
+      "metadata": {
+        "description": "Principal ID of the feature pipeline MI (from bankretain-ml-rg output) — needs Search Index Data Contributor"
+      }
+    },
+    "developerObjectId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Object ID of the developer Entra ID user — for Key Vault Administrator in dev"
+      }
+    },
+    "githubActionsPrincipalId": {
+      "type": "string",
+      "metadata": {
+        "description": "Object ID of the GitHub Actions service principal"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "foundry-deploy",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "15832118203205773186"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "environment": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "suffix": "[uniqueString(resourceGroup().id)]",
+            "lawName": "[format('bankretain-ai-law-{0}-{1}', parameters('environment'), take(variables('suffix'), 8))]",
+            "storageAccountName": "[format('bankretainai{0}{1}', parameters('environment'), take(variables('suffix'), 8))]",
+            "foundryHubName": "[format('bankretain-hub-{0}-{1}', parameters('environment'), take(variables('suffix'), 8))]",
+            "foundryProjectName": "bankretain-project",
+            "keyVaultName": "[format('bankretain-kv-ai-{0}', take(variables('suffix'), 8))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2022-10-01",
+              "name": "[variables('lawName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ai"
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-01-01",
+              "name": "[variables('storageAccountName')]",
+              "location": "[parameters('location')]",
+              "kind": "StorageV2",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "properties": {
+                "accessTier": "Hot",
+                "allowBlobPublicAccess": false,
+                "minimumTlsVersion": "TLS1_2",
+                "supportsHttpsTrafficOnly": true
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ai"
+              }
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2023-07-01",
+              "name": "[variables('keyVaultName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "tenantId": "[subscription().tenantId]",
+                "enableRbacAuthorization": true,
+                "enableSoftDelete": true,
+                "softDeleteRetentionInDays": 7,
+                "enabledForTemplateDeployment": true,
+                "publicNetworkAccess": "Enabled"
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ai"
+              }
+            },
+            {
+              "type": "Microsoft.MachineLearningServices/workspaces",
+              "apiVersion": "2024-01-01-preview",
+              "name": "[variables('foundryHubName')]",
+              "location": "[parameters('location')]",
+              "kind": "Hub",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "friendlyName": "BankRetain AI Hub",
+                "description": "Foundry hub for BankRetain agent pipeline — GPT-4o, Agent Service, file search",
+                "storageAccount": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                "keyVault": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+                "publicNetworkAccess": "Enabled"
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ai"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.MachineLearningServices/workspaces",
+              "apiVersion": "2024-01-01-preview",
+              "name": "[variables('foundryProjectName')]",
+              "location": "[parameters('location')]",
+              "kind": "Project",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "friendlyName": "BankRetain Project",
+                "description": "Foundry project for BankRetain: churn reason classification, offer generation, compliance evaluation",
+                "hubResourceId": "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('foundryHubName'))]",
+                "publicNetworkAccess": "Enabled"
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ai",
+                "purpose": "agent-pipeline"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('foundryHubName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "foundryHubName": {
+              "type": "string",
+              "value": "[variables('foundryHubName')]"
+            },
+            "foundryHubId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('foundryHubName'))]"
+            },
+            "foundryProjectName": {
+              "type": "string",
+              "value": "[variables('foundryProjectName')]"
+            },
+            "foundryProjectId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('foundryProjectName'))]"
+            },
+            "foundryProjectPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.MachineLearningServices/workspaces', variables('foundryProjectName')), '2024-01-01-preview', 'full').identity.principalId]"
+            },
+            "keyVaultName": {
+              "type": "string",
+              "value": "[variables('keyVaultName')]"
+            },
+            "keyVaultId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+            },
+            "storageAccountName": {
+              "type": "string",
+              "value": "[variables('storageAccountName')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "search-deploy",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "11561227892922784589"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "environment": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "suffix": "[uniqueString(resourceGroup().id)]",
+            "searchServiceName": "[format('bankretain-search-{0}-{1}', parameters('environment'), take(variables('suffix'), 8))]",
+            "isProd": "[equals(parameters('environment'), 'prod')]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Search/searchServices",
+              "apiVersion": "2023-11-01",
+              "name": "[variables('searchServiceName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "[if(variables('isProd'), 'basic', 'free')]"
+              },
+              "identity": "[if(variables('isProd'), createObject('type', 'SystemAssigned'), null())]",
+              "properties": {
+                "replicaCount": 1,
+                "partitionCount": 1,
+                "hostingMode": "default",
+                "publicNetworkAccess": "enabled",
+                "authOptions": "[if(variables('isProd'), createObject('aadOrApiKey', createObject('aadAuthFailureMode', 'http403')), null())]",
+                "semanticSearch": "disabled"
+              },
+              "tags": {
+                "project": "bankretain",
+                "environment": "[parameters('environment')]",
+                "layer": "ai",
+                "purpose": "customer-profile-index"
+              }
+            }
+          ],
+          "outputs": {
+            "searchServiceName": {
+              "type": "string",
+              "value": "[variables('searchServiceName')]"
+            },
+            "searchServiceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Search/searchServices', variables('searchServiceName'))]"
+            },
+            "searchServiceEndpoint": {
+              "type": "string",
+              "value": "[format('https://{0}.search.windows.net', variables('searchServiceName'))]"
+            },
+            "searchServicePrincipalId": {
+              "type": "string",
+              "value": "[if(variables('isProd'), reference(resourceId('Microsoft.Search/searchServices', variables('searchServiceName')), '2023-11-01', 'full').identity.principalId, '')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "ai-roles-deploy",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "foundryProjectPrincipalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry-deploy'), '2025-04-01').outputs.foundryProjectPrincipalId.value]"
+          },
+          "featurePipelineMIPrincipalId": {
+            "value": "[parameters('featurePipelineMIPrincipalId')]"
+          },
+          "searchServiceName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'search-deploy'), '2025-04-01').outputs.searchServiceName.value]"
+          },
+          "keyVaultName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry-deploy'), '2025-04-01').outputs.keyVaultName.value]"
+          },
+          "developerObjectId": {
+            "value": "[parameters('developerObjectId')]"
+          },
+          "githubActionsPrincipalId": {
+            "value": "[parameters('githubActionsPrincipalId')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "14685393540551925986"
+            }
+          },
+          "parameters": {
+            "foundryProjectPrincipalId": {
+              "type": "string"
+            },
+            "featurePipelineMIPrincipalId": {
+              "type": "string"
+            },
+            "searchServiceName": {
+              "type": "string"
+            },
+            "keyVaultName": {
+              "type": "string"
+            },
+            "developerObjectId": {
+              "type": "string"
+            },
+            "githubActionsPrincipalId": {
+              "type": "string"
+            },
+            "environment": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "roleSearchIndexDataContributor": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '8ebe5a00-799e-43f5-93ac-243d3dce84a7')]",
+            "roleSearchIndexDataReader": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '1407120a-92aa-4202-b7e9-c0e197c71c8f')]",
+            "roleKeyVaultSecretsUser": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
+            "roleKeyVaultAdministrator": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '00482a5a-887f-4fb3-b363-3b7fe8e74483')]",
+            "roleContributor": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]"
+          },
+          "resources": [
+            {
+              "condition": "[equals(parameters('environment'), 'prod')]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Search/searchServices', parameters('searchServiceName'))]",
+              "name": "[guid(resourceId('Microsoft.Search/searchServices', parameters('searchServiceName')), parameters('featurePipelineMIPrincipalId'), variables('roleSearchIndexDataContributor'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleSearchIndexDataContributor')]",
+                "principalId": "[parameters('featurePipelineMIPrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "description": "Feature pipeline MI upserts/deletes customer profile documents in AI Search weekly"
+              }
+            },
+            {
+              "condition": "[equals(parameters('environment'), 'prod')]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Search/searchServices', parameters('searchServiceName'))]",
+              "name": "[guid(resourceId('Microsoft.Search/searchServices', parameters('searchServiceName')), parameters('foundryProjectPrincipalId'), variables('roleSearchIndexDataReader'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleSearchIndexDataReader')]",
+                "principalId": "[parameters('foundryProjectPrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "description": "Foundry project MI queries customer profiles for Agent 1 — read-only"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('foundryProjectPrincipalId'), variables('roleKeyVaultSecretsUser'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleKeyVaultSecretsUser')]",
+                "principalId": "[parameters('foundryProjectPrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "description": "Foundry project MI reads agent configuration secrets at runtime"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('featurePipelineMIPrincipalId'), variables('roleKeyVaultSecretsUser'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleKeyVaultSecretsUser')]",
+                "principalId": "[parameters('featurePipelineMIPrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "description": "Feature pipeline MI reads AI Search endpoint to upsert profiles"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('githubActionsPrincipalId'), variables('roleKeyVaultSecretsUser'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleKeyVaultSecretsUser')]",
+                "principalId": "[parameters('githubActionsPrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "description": "GitHub Actions SP reads secrets during CI/CD pipelines"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(resourceGroup().id, parameters('githubActionsPrincipalId'), variables('roleContributor'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleContributor')]",
+                "principalId": "[parameters('githubActionsPrincipalId')]",
+                "principalType": "ServicePrincipal",
+                "description": "GitHub Actions SP deploys Bicep templates to bankretain-ai-rg"
+              }
+            },
+            {
+              "condition": "[and(not(empty(parameters('developerObjectId'))), equals(parameters('environment'), 'dev'))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('developerObjectId'), variables('roleKeyVaultAdministrator'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('roleKeyVaultAdministrator')]",
+                "principalId": "[parameters('developerObjectId')]",
+                "principalType": "User",
+                "description": "Developer manages Foundry layer secrets during initial setup — dev only"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'foundry-deploy')]",
+        "[resourceId('Microsoft.Resources/deployments', 'search-deploy')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "foundryHubName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry-deploy'), '2025-04-01').outputs.foundryHubName.value]"
+    },
+    "foundryProjectName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry-deploy'), '2025-04-01').outputs.foundryProjectName.value]"
+    },
+    "foundryProjectPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry-deploy'), '2025-04-01').outputs.foundryProjectPrincipalId.value]"
+    },
+    "searchServiceName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'search-deploy'), '2025-04-01').outputs.searchServiceName.value]"
+    },
+    "searchServiceEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'search-deploy'), '2025-04-01').outputs.searchServiceEndpoint.value]"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'foundry-deploy'), '2025-04-01').outputs.keyVaultName.value]"
+    }
+  }
+}
