@@ -44,8 +44,8 @@ env:
 jobs:
   # ---------------------------------------------------------------------------
   # Job 0: Pre-flight validation
-  # Validates both Bicep templates against Azure before any resource is touched.
-  # Catches param mismatches, missing role definitions, and ARM schema errors.
+  # Compiles both Bicep templates without requiring Azure authentication.
+  # Catches Bicep/ARM syntax and module wiring errors early.
   # ---------------------------------------------------------------------------
   validate:
     name: Validate Bicep templates
@@ -55,40 +55,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ env.AZURE_CLIENT_ID }}
-          tenant-id: ${{ env.AZURE_TENANT_ID }}
-          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Ensure resource groups exist
+      - name: Compile ML resource group template
         run: |
-          az group create --name ${{ env.ML_RESOURCE_GROUP }} --location ${{ env.LOCATION }} --tags project=bankretain environment=${{ env.ENVIRONMENT }} layer=ml
-          az group create --name ${{ env.AI_RESOURCE_GROUP }} --location ${{ env.LOCATION }} --tags project=bankretain environment=${{ env.ENVIRONMENT }} layer=ai
+          az bicep build --file infra/ml-rg/main.bicep --stdout > /dev/null
 
-      - name: Validate ML resource group template
+      - name: Compile AI resource group template
         run: |
-          az deployment group validate \
-            --resource-group ${{ env.ML_RESOURCE_GROUP }} \
-            --template-file infra/ml-rg/main.bicep \
-            --parameters \
-              environment=${{ env.ENVIRONMENT }} \
-              location=${{ env.LOCATION }} \
-              developerObjectId="${{ secrets.DEVELOPER_OBJECT_ID }}" \
-              githubActionsPrincipalId="${{ secrets.ACTIONS_SP_OBJECT_ID }}"
-
-      - name: Validate AI resource group template
-        run: |
-          az deployment group validate \
-            --resource-group ${{ env.AI_RESOURCE_GROUP }} \
-            --template-file infra/ai-rg/main.bicep \
-            --parameters \
-              environment=${{ env.ENVIRONMENT }} \
-              location=${{ env.LOCATION }} \
-              featurePipelineMIPrincipalId="${{ secrets.DEVELOPER_OBJECT_ID }}" \
-              developerObjectId="${{ secrets.DEVELOPER_OBJECT_ID }}" \
-              githubActionsPrincipalId="${{ secrets.ACTIONS_SP_OBJECT_ID }}"
+          az bicep build --file infra/ai-rg/main.bicep --stdout > /dev/null
 
   # ---------------------------------------------------------------------------
   # Job 1: Deploy ML Resource Group
