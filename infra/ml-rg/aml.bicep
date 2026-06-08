@@ -9,6 +9,7 @@ targetScope = 'resourceGroup'
 param location string
 param environment string
 param storageAccountName string  // passed from sql.bicep output
+param keyVaultName string        // passed from sql.bicep output
 
 // ---------------------------------------------------------------------------
 // Naming
@@ -90,6 +91,10 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing 
   name: storageAccountName
 }
 
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
+  name: keyVaultName
+}
+
 // ---------------------------------------------------------------------------
 // User-Assigned Managed Identity — Feature Pipeline Compute
 // This MI gets: SQL db_datareader, AI Search Index Data Contributor,
@@ -121,6 +126,7 @@ resource amlWorkspace 'Microsoft.MachineLearningServices/workspaces@2024-01-01-p
     friendlyName: 'BankRetain ML Workspace'
     description: 'Azure ML workspace for BankRetain churn prediction pipeline'
     storageAccount: storageAccount.id
+    keyVault: keyVault.id
     applicationInsights: appInsights.id
     containerRegistry: containerRegistry.id
     publicNetworkAccess: 'Enabled'
@@ -149,6 +155,7 @@ resource featureStore 'Microsoft.MachineLearningServices/workspaces@2024-01-01-p
     friendlyName: 'BankRetain Feature Store'
     description: 'Managed feature store ensuring training-serving consistency for churn model'
     storageAccount: storageAccount.id
+    keyVault: keyVault.id
     applicationInsights: appInsights.id
     publicNetworkAccess: 'Enabled'
     featureStoreSettings: {
