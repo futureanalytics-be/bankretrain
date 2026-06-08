@@ -39,6 +39,7 @@ module aml 'aml.bicep' = {
     location: location
     environment: environment
     storageAccountName: sql.outputs.storageAccountName
+    keyVaultName: sql.outputs.keyVaultName
   }
 }
 
