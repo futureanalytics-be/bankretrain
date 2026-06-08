@@ -22,33 +22,35 @@ param environment string
 var suffix = uniqueString(resourceGroup().id)
 var searchServiceName = 'bankretain-search-${environment}-${take(suffix, 8)}'
 
+// Free tier in dev: no MI, no RBAC auth, 50 MB storage — sufficient for testing ~800 docs
+// Basic tier in prod: system-assigned MI, RBAC auth, 15 GB storage
+var isProd = environment == 'prod'
+
 // ---------------------------------------------------------------------------
-// Azure AI Search — Basic tier
-// Basic gives 1 replica, 3 partitions, supports managed identity auth
+// Azure AI Search
+// dev  → Free  (API key auth, no MI — agents use key from Key Vault)
+// prod → Basic (RBAC auth via system-assigned MI)
 // ---------------------------------------------------------------------------
 
 resource searchService 'Microsoft.Search/searchServices@2023-11-01' = {
   name: searchServiceName
   location: location
   sku: {
-    name: 'basic'
+    name: isProd ? 'basic' : 'free'
   }
-  identity: {
+  identity: isProd ? {
     type: 'SystemAssigned'
-  }
+  } : null
   properties: {
     replicaCount: 1
     partitionCount: 1
     hostingMode: 'default'
     publicNetworkAccess: 'enabled'
-    authOptions: {
-      // Enable both API key and RBAC — agents use RBAC (MI), enrichment pipeline uses RBAC
-      // API key disabled in prod; kept enabled in dev for debugging
+    authOptions: isProd ? {
       aadOrApiKey: {
         aadAuthFailureMode: 'http403'
       }
-    }
-    // not needed — Agent 1 uses filtered exact lookup, not semantic ranking
+    } : null
     semanticSearch: 'disabled'
   }
   tags: {
@@ -98,4 +100,4 @@ resource searchService 'Microsoft.Search/searchServices@2023-11-01' = {
 output searchServiceName string = searchService.name
 output searchServiceId string = searchService.id
 output searchServiceEndpoint string = 'https://${searchService.name}.search.windows.net'
-output searchServicePrincipalId string = searchService.identity.principalId
+output searchServicePrincipalId string = isProd ? searchService.identity.principalId : ''

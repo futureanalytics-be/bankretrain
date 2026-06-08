@@ -41,11 +41,11 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
 }
 
 // ---------------------------------------------------------------------------
-// Feature Pipeline MI → AI Search: Search Index Data Contributor
-// Enrichment pipeline upserts and deletes customer profile documents weekly
+// Search RBAC — prod only (Free tier does not support managed identity auth)
+// In dev, agents and enrichment pipeline use API key stored in Key Vault
 // ---------------------------------------------------------------------------
 
-resource featurePipelineMI_Search_Contributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource featurePipelineMI_Search_Contributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (environment == 'prod') {
   name: guid(searchService.id, featurePipelineMIPrincipalId, roleSearchIndexDataContributor)
   scope: searchService
   properties: {
@@ -56,12 +56,7 @@ resource featurePipelineMI_Search_Contributor 'Microsoft.Authorization/roleAssig
   }
 }
 
-// ---------------------------------------------------------------------------
-// Foundry Project MI → AI Search: Search Index Data Reader
-// Agents query the customer profile index — read-only, cannot modify index
-// ---------------------------------------------------------------------------
-
-resource foundryProjectMI_Search_Reader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource foundryProjectMI_Search_Reader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (environment == 'prod') {
   name: guid(searchService.id, foundryProjectPrincipalId, roleSearchIndexDataReader)
   scope: searchService
   properties: {

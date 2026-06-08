@@ -14,13 +14,6 @@ param environment string = 'dev'
 @description('Azure region for all resources')
 param location string = 'swedencentral'
 
-@description('Admin login for Azure SQL Server')
-param sqlAdminLogin string
-
-@secure()
-@description('Admin password for Azure SQL Server')
-param sqlAdminPassword string
-
 @description('Object ID of the developer Entra ID user — for Key Vault Administrator in dev')
 param developerObjectId string = ''
 
@@ -36,8 +29,7 @@ module sql 'sql.bicep' = {
   params: {
     location: location
     environment: environment
-    sqlAdminLogin: sqlAdminLogin
-    sqlAdminPassword: sqlAdminPassword
+    developerObjectId: developerObjectId
   }
 }
 
@@ -48,7 +40,6 @@ module aml 'aml.bicep' = {
     environment: environment
     storageAccountName: sql.outputs.storageAccountName
   }
-  dependsOn: [sql]
 }
 
 module roles 'roles.bicep' = {
@@ -63,7 +54,6 @@ module roles 'roles.bicep' = {
     githubActionsPrincipalId: githubActionsPrincipalId
     environment: environment
   }
-  dependsOn: [sql, aml]
 }
 
 // ---------------------------------------------------------------------------

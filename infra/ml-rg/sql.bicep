@@ -2,10 +2,7 @@ targetScope = 'resourceGroup'
 
 param location string
 param environment string
-param sqlAdminLogin string
-
-@secure()
-param sqlAdminPassword string
+param developerObjectId string
 
 var suffix = uniqueString(resourceGroup().id)
 var sqlServerName = 'bankretain-sql-${environment}-${suffix}'
@@ -40,11 +37,16 @@ resource sqlServer 'Microsoft.Sql/servers@2023-02-01-preview' = {
   name: sqlServerName
   location: location
   properties: {
-    administratorLogin: sqlAdminLogin
-    administratorLoginPassword: sqlAdminPassword
     version: '12.0'
     minimalTlsVersion: '1.2'
-    publicNetworkAccess: 'Enabled' // set to Disabled + private endpoint in production
+    publicNetworkAccess: 'Enabled'
+    administrators: {
+      administratorType: 'ActiveDirectory'
+      azureADOnlyAuthentication: true
+      login: 'bankretain-developer'
+      sid: developerObjectId
+      tenantId: subscription().tenantId
+    }
   }
   tags: {
     project: 'bankretain'
@@ -116,7 +118,7 @@ resource sqlConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
   parent: keyVault
   name: 'sql-connection-string'
   properties: {
-    value: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Initial Catalog=${sqlDbName};Persist Security Info=False;User ID=${sqlAdminLogin};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
+    value: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Initial Catalog=${sqlDbName};Authentication=Active Directory MSI;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
     contentType: 'text/plain'
   }
 }

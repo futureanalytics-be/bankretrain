@@ -23,6 +23,11 @@ on:
           - dev
           - prod
 
+# Prevent concurrent deployments to the same environment
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
 env:
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -34,6 +39,54 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
+  # Job 0: Pre-flight validation
+  # Validates both Bicep templates against Azure before any resource is touched.
+  # Catches param mismatches, missing role definitions, and ARM schema errors.
+  # ---------------------------------------------------------------------------
+  validate:
+    name: Validate Bicep templates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure resource groups exist
+        run: |
+          az group create --name ${{ env.ML_RESOURCE_GROUP }} --location ${{ env.LOCATION }} --tags project=bankretain environment=${{ env.ENVIRONMENT }} layer=ml
+          az group create --name ${{ env.AI_RESOURCE_GROUP }} --location ${{ env.LOCATION }} --tags project=bankretain environment=${{ env.ENVIRONMENT }} layer=ai
+
+      - name: Validate ML resource group template
+        run: |
+          az deployment group validate \
+            --resource-group ${{ env.ML_RESOURCE_GROUP }} \
+            --template-file infra/ml-rg/main.bicep \
+            --parameters \
+              environment=${{ env.ENVIRONMENT }} \
+              location=${{ env.LOCATION }} \
+              developerObjectId="${{ secrets.DEVELOPER_OBJECT_ID }}" \
+              githubActionsPrincipalId="${{ secrets.ACTIONS_SP_OBJECT_ID }}"
+
+      - name: Validate AI resource group template
+        run: |
+          az deployment group validate \
+            --resource-group ${{ env.AI_RESOURCE_GROUP }} \
+            --template-file infra/ai-rg/main.bicep \
+            --parameters \
+              environment=${{ env.ENVIRONMENT }} \
+              location=${{ env.LOCATION }} \
+              featurePipelineMIPrincipalId="${{ secrets.DEVELOPER_OBJECT_ID }}" \
+              developerObjectId="${{ secrets.DEVELOPER_OBJECT_ID }}" \
+              githubActionsPrincipalId="${{ secrets.ACTIONS_SP_OBJECT_ID }}"
+
+  # ---------------------------------------------------------------------------
   # Job 1: Deploy ML Resource Group
   # Creates SQL, AML workspace, feature store, storage, Key Vault, RBAC
   # Outputs featurePipelineMIPrincipalId for use in Job 2
@@ -41,6 +94,7 @@ jobs:
   deploy-ml-rg:
     name: Deploy bankretain-ml-rg
     runs-on: ubuntu-latest
+    needs: validate
     outputs:
       featurePipelineMIPrincipalId: ${{ steps.ml-deploy.outputs.featurePipelineMIPrincipalId }}
       amlWorkspaceName: ${{ steps.ml-deploy.outputs.amlWorkspaceName }}
@@ -70,15 +124,14 @@ jobs:
         id: ml-deploy
         run: |
           OUTPUT=$(az deployment group create \
+            --name bankretain-ml-${{ env.ENVIRONMENT }}-${{ github.run_number }} \
             --resource-group ${{ env.ML_RESOURCE_GROUP }} \
             --template-file infra/ml-rg/main.bicep \
             --parameters \
               environment=${{ env.ENVIRONMENT }} \
               location=${{ env.LOCATION }} \
-              sqlAdminLogin=bankretainadmin \
-              sqlAdminPassword="${{ secrets.SQL_ADMIN_PASSWORD }}" \
               developerObjectId="${{ secrets.DEVELOPER_OBJECT_ID }}" \
-              githubActionsPrincipalId="${{ secrets.GITHUB_ACTIONS_SP_OBJECT_ID }}" \
+              githubActionsPrincipalId="${{ secrets.ACTIONS_SP_OBJECT_ID }}" \
             --query "properties.outputs" \
             --output json)
 
@@ -121,9 +174,19 @@ jobs:
             --location ${{ env.LOCATION }} \
             --tags project=bankretain environment=${{ env.ENVIRONMENT }} layer=ai
 
+      - name: Guard — featurePipelineMIPrincipalId must not be empty
+        run: |
+          MI_ID="${{ needs.deploy-ml-rg.outputs.featurePipelineMIPrincipalId }}"
+          if [ -z "$MI_ID" ] || [ "$MI_ID" = "null" ]; then
+            echo "featurePipelineMIPrincipalId is empty — ml-rg deploy may have failed to output it"
+            exit 1
+          fi
+          echo "featurePipelineMIPrincipalId: $MI_ID"
+
       - name: Deploy AI resource group (Bicep)
         run: |
           az deployment group create \
+            --name bankretain-ai-${{ env.ENVIRONMENT }}-${{ github.run_number }} \
             --resource-group ${{ env.AI_RESOURCE_GROUP }} \
             --template-file infra/ai-rg/main.bicep \
             --parameters \
@@ -131,7 +194,7 @@ jobs:
               location=${{ env.LOCATION }} \
               featurePipelineMIPrincipalId="${{ needs.deploy-ml-rg.outputs.featurePipelineMIPrincipalId }}" \
               developerObjectId="${{ secrets.DEVELOPER_OBJECT_ID }}" \
-              githubActionsPrincipalId="${{ secrets.GITHUB_ACTIONS_SP_OBJECT_ID }}"
+              githubActionsPrincipalId="${{ secrets.ACTIONS_SP_OBJECT_ID }}"
 
   # ---------------------------------------------------------------------------
   # Job 3: Post-deployment validation
