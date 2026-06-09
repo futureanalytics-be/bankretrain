@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+venv/
+.venv/
+
+# Generated data — keep structure, not content
+data/synthetic/output/*.parquet
+
+# Local dev
+sql.env
+*.DS_Store
