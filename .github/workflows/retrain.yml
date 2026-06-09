@@ -107,7 +107,7 @@ jobs:
     name: Seed Population B into Azure SQL
     runs-on: ubuntu-latest
     needs: resolve-workspace
-    if: env.DATASET_VERSION == 'population_b'
+    if: ${{ github.event.inputs.dataset_version != 'population_a' }}
 
     steps:
       - name: Checkout repository
