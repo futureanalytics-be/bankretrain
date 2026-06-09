@@ -204,7 +204,7 @@ jobs:
   # Job 4: Canary deployment — new model at CANARY_TRAFFIC%
   # ---------------------------------------------------------------------------
   canary-deploy:
-    name: Canary deployment (v2 at ${{ env.CANARY_TRAFFIC }}%)
+    name: Canary deployment (v2 at 10%)
     runs-on: ubuntu-latest
     needs: [resolve-workspace, train]
 
