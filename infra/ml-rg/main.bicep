@@ -43,6 +43,15 @@ module aml 'aml.bicep' = {
   }
 }
 
+module endpoint 'endpoint.bicep' = {
+  name: 'endpoint-deploy'
+  params: {
+    amlWorkspaceName: aml.outputs.amlWorkspaceName
+    location: location
+    environment: environment
+  }
+}
+
 module roles 'roles.bicep' = {
   name: 'roles-deploy'
   params: {

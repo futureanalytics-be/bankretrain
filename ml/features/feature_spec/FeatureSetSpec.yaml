@@ -1,0 +1,53 @@
+source:
+  type: custom
+  path: .
+  timestamp_column:
+    name: snapshot_date
+
+feature_transformation_code:
+  path: ./feature_transformation.py
+
+index_columns:
+  - name: customer_id
+    type: string
+
+features:
+  - name: days_since_last_login
+    type: integer
+    description: Days between most recent app session and the snapshot date (999 if no sessions)
+  - name: competitor_transfer_count
+    type: integer
+    description: Number of outbound transfers to competitor BICs in the 90-day pre-snapshot window
+  - name: complaints_open
+    type: integer
+    description: Count of unresolved complaints as at snapshot date
+  - name: months_to_rate_reset
+    type: float
+    description: Months until earliest mortgage fixed-rate reset (99 if no mortgage or no reset date)
+  - name: avg_monthly_inflow_eur
+    type: float
+    description: Mean credit transaction amount (EUR) in the 90-day window
+  - name: app_logins_last_30d
+    type: integer
+    description: App session count in the 30 days before snapshot
+  - name: app_logins_last_90d
+    type: integer
+    description: App session count in the 90 days before snapshot
+  - name: salary_account_flag
+    type: integer
+    description: 1 if the customer has their salary domiciled with this bank
+  - name: product_count
+    type: integer
+    description: Number of active products held at snapshot date
+  - name: nps_score_last
+    type: float
+    description: Most recent NPS survey score (0-10); null if no response in 6 months
+  - name: segment_enc
+    type: integer
+    description: Label-encoded customer segment
+  - name: region_enc
+    type: integer
+    description: Label-encoded region
+  - name: churned
+    type: integer
+    description: Ground truth label — 1 if customer churned within 60 days of snapshot

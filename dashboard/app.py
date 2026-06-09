@@ -28,5 +28,5 @@ st.divider()
 
 col1, col2, col3 = st.columns(3)
 col1.page_link("pages/01_data_overview.py", label="Data Overview", icon="📊")
-col2.markdown("🤖 **ML Monitoring** — Phase 2")
+col2.page_link("pages/02_ml_monitoring.py", label="ML Monitoring", icon="🤖")
 col3.markdown("📬 **Approved Outreach** — Phase 4")

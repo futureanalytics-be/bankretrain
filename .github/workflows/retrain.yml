@@ -1,0 +1,315 @@
+# =============================================================================
+# BankRetain — Retraining Pipeline
+#
+# Triggers:
+#   - Automatically: Event Grid webhook from Azure ML Model Monitor when
+#     precision drops below 0.72 (drift alert fires)
+#   - Manually: workflow_dispatch for supervised retraining scenarios
+#
+# Flow:
+#   1. Seed Population B data into Azure SQL
+#   2. Submit AML training pipeline (feature extraction → train → evaluate)
+#   3. Evaluate promotes v2 to staging if precision >= 0.75
+#   4. Initiate canary deployment (v2 10% / v1 90%)
+#   5. Notify model owner for approval (promote.py promotes to 100%)
+# =============================================================================
+
+name: Retrain Churn Model
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset_version:
+        description: 'Dataset version to train on'
+        required: true
+        default: 'population_b'
+        type: choice
+        options:
+          - population_b
+          - population_a
+      snapshot_date:
+        description: 'Feature snapshot date (YYYY-MM-DD)'
+        required: true
+        default: '2025-10-01'
+      canary_traffic:
+        description: 'Canary traffic % for new model'
+        required: true
+        default: '10'
+  repository_dispatch:
+    types: [drift-alert]   # fired by alerts.py Event Grid webhook handler
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: retrain
+  cancel-in-progress: false
+
+env:
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ML_RESOURCE_GROUP: bankretain-ml-rg
+  DATASET_VERSION: ${{ github.event.inputs.dataset_version || 'population_b' }}
+  SNAPSHOT_DATE:   ${{ github.event.inputs.snapshot_date  || '2025-10-01' }}
+  CANARY_TRAFFIC:  ${{ github.event.inputs.canary_traffic  || '10' }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1: Resolve workspace name from deployed resources
+  # ---------------------------------------------------------------------------
+  resolve-workspace:
+    name: Resolve AML workspace name
+    runs-on: ubuntu-latest
+    outputs:
+      aml_workspace: ${{ steps.resolve.outputs.aml_workspace }}
+      storage_account: ${{ steps.resolve.outputs.storage_account }}
+      feature_pipeline_mi_client_id: ${{ steps.resolve.outputs.feature_pipeline_mi_client_id }}
+
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve workspace and storage names
+        id: resolve
+        run: |
+          AML_WS=$(az resource list \
+            --resource-group ${{ env.ML_RESOURCE_GROUP }} \
+            --resource-type "Microsoft.MachineLearningServices/workspaces" \
+            --query "[?tags.purpose != 'feature-store'].name | [0]" \
+            --output tsv)
+          STORAGE=$(az resource list \
+            --resource-group ${{ env.ML_RESOURCE_GROUP }} \
+            --resource-type "Microsoft.Storage/storageAccounts" \
+            --query "[0].name" --output tsv)
+          MI_NAME=$(az identity list \
+            --resource-group ${{ env.ML_RESOURCE_GROUP }} \
+            --query "[?contains(name, 'featurepipeline')].name | [0]" --output tsv)
+          MI_CLIENT_ID=$(az identity show \
+            --resource-group ${{ env.ML_RESOURCE_GROUP }} \
+            --name "$MI_NAME" --query clientId --output tsv)
+
+          echo "aml_workspace=$AML_WS"              >> $GITHUB_OUTPUT
+          echo "storage_account=$STORAGE"            >> $GITHUB_OUTPUT
+          echo "feature_pipeline_mi_client_id=$MI_CLIENT_ID" >> $GITHUB_OUTPUT
+          echo "AML workspace: $AML_WS"
+          echo "Storage:       $STORAGE"
+
+  # ---------------------------------------------------------------------------
+  # Job 2: Seed Population B into Azure SQL
+  # ---------------------------------------------------------------------------
+  seed-population-b:
+    name: Seed Population B into Azure SQL
+    runs-on: ubuntu-latest
+    needs: resolve-workspace
+    if: env.DATASET_VERSION == 'population_b'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install pandas numpy pyodbc azure-identity pyarrow
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list \
+            | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve SQL server FQDN
+        id: sql
+        run: |
+          SQL_SERVER=$(az sql server list \
+            --resource-group ${{ env.ML_RESOURCE_GROUP }} \
+            --query "[0].fullyQualifiedDomainName" --output tsv)
+          echo "sql_server=$SQL_SERVER" >> $GITHUB_OUTPUT
+
+      - name: Seed Population B
+        run: |
+          python data/synthetic/generate.py \
+            --population b \
+            --seed-sql
+        env:
+          BANKRETAIN_SQL_SERVER: ${{ steps.sql.outputs.sql_server }}
+          BANKRETAIN_SQL_DB: bankretaindb
+          USE_MANAGED_IDENTITY: "true"
+
+  # ---------------------------------------------------------------------------
+  # Job 3: Submit AML training pipeline
+  # ---------------------------------------------------------------------------
+  train:
+    name: Submit AML training pipeline
+    runs-on: ubuntu-latest
+    needs: [resolve-workspace, seed-population-b]
+    if: always() && needs.resolve-workspace.result == 'success'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install azure-ai-ml
+        run: pip install azure-ai-ml azure-identity
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve SQL server FQDN
+        id: sql
+        run: |
+          SQL_SERVER=$(az sql server list \
+            --resource-group ${{ env.ML_RESOURCE_GROUP }} \
+            --query "[0].fullyQualifiedDomainName" --output tsv)
+          echo "sql_server=$SQL_SERVER" >> $GITHUB_OUTPUT
+
+      - name: Submit training pipeline and wait
+        run: |
+          python ml/training/pipeline.py \
+            --subscription-id  ${{ env.AZURE_SUBSCRIPTION_ID }} \
+            --resource-group   ${{ env.ML_RESOURCE_GROUP }} \
+            --workspace-name   ${{ needs.resolve-workspace.outputs.aml_workspace }} \
+            --sql-server       ${{ steps.sql.outputs.sql_server }} \
+            --mi-client-id     ${{ needs.resolve-workspace.outputs.feature_pipeline_mi_client_id }} \
+            --snapshot-date    ${{ env.SNAPSHOT_DATE }} \
+            --dataset-version  ${{ env.DATASET_VERSION }} \
+            --wait
+
+  # ---------------------------------------------------------------------------
+  # Job 4: Canary deployment — new model at CANARY_TRAFFIC%
+  # ---------------------------------------------------------------------------
+  canary-deploy:
+    name: Canary deployment (v2 at ${{ env.CANARY_TRAFFIC }}%)
+    runs-on: ubuntu-latest
+    needs: [resolve-workspace, train]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install azure-ai-ml azure-identity
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set canary split (new model ${{ env.CANARY_TRAFFIC }}%)
+        run: |
+          python - <<'EOF'
+          import os
+          from azure.ai.ml import MLClient
+          from azure.identity import DefaultAzureCredential
+
+          client = MLClient(
+              DefaultAzureCredential(),
+              os.environ["AZURE_SUBSCRIPTION_ID"],
+              "bankretain-ml-rg",
+              "${{ needs.resolve-workspace.outputs.aml_workspace }}",
+          )
+
+          versions = sorted(
+              [v for v in client.models.list(name="bankretain-churn-model")
+               if v.tags.get("status") == "staging"],
+              key=lambda v: int(v.version),
+          )
+          if not versions:
+              raise RuntimeError("No staging model found — training pipeline may have failed.")
+
+          new_version = versions[-1].version
+          new_dep     = f"churn-v{new_version}"
+          canary_pct  = int("${{ env.CANARY_TRAFFIC }}")
+          old_pct     = 100 - canary_pct
+
+          endpoint = client.online_endpoints.get("bankretain-churn-endpoint")
+          old_deployments = [d for d in endpoint.traffic if d != new_dep]
+
+          traffic = {new_dep: canary_pct}
+          if old_deployments:
+              traffic[old_deployments[0]] = old_pct
+
+          endpoint.traffic = traffic
+          client.online_endpoints.begin_create_or_update(endpoint).result()
+          print(f"Canary live: {traffic}")
+          EOF
+
+      - name: Post canary summary
+        run: |
+          echo "## Canary Deployment Active" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dataset | ${{ env.DATASET_VERSION }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Canary traffic | ${{ env.CANARY_TRAFFIC }}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Snapshot date | ${{ env.SNAPSHOT_DATE }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next step:** Review canary metrics in AML Studio and run \`promote.py\` to promote to 100% traffic."
+
+  # ---------------------------------------------------------------------------
+  # Job 5: Notify model owner for approval
+  # ---------------------------------------------------------------------------
+  notify:
+    name: Notify model owner
+    runs-on: ubuntu-latest
+    needs: canary-deploy
+
+    steps:
+      - name: Create approval issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "Model promotion approval required — ${{ env.DATASET_VERSION }} canary at ${{ env.CANARY_TRAFFIC }}%" \
+            --body "## Canary Deployment Ready for Promotion
+
+          A new churn model version has been trained on **${{ env.DATASET_VERSION }}** and deployed at **${{ env.CANARY_TRAFFIC }}%** canary traffic.
+
+          **Snapshot date:** ${{ env.SNAPSHOT_DATE }}
+
+          ### Next steps
+          1. Review canary metrics in [AML Studio](https://ml.azure.com)
+          2. Check precision/recall vs v1 baseline over 24–48 hours
+          3. When satisfied, promote via:
+
+          \`\`\`bash
+          python ml/registry/promote.py \\
+            --subscription-id \$AZURE_SUBSCRIPTION_ID \\
+            --workspace-name  <aml-workspace-name> \\
+            --endpoint-name   bankretain-churn-endpoint
+          \`\`\`
+
+          Triggered by: ${{ github.event_name }} on ${{ github.sha }}" \
+            --repo ${{ github.repository }}

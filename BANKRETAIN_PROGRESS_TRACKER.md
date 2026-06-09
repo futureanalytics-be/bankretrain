@@ -11,8 +11,8 @@ Update this file as you complete each task. Replace `[ ]` with `[x]` when done.
 
 | Phase | Status | Done When |
 |---|---|---|
-| Phase 1 — Infrastructure and Data | 🔄 In Progress | Both RGs provisioned, Population A in SQL, dashboard showing data |
-| Phase 2 — ML Model and Monitoring | ⬜ Not Started | Model v1 deployed, batch scoring running, drift monitor configured |
+| Phase 1 — Infrastructure and Data | ✅ Complete | Both RGs provisioned, Population A in SQL, dashboard showing data |
+| Phase 2 — ML Model and Monitoring | 🔄 In Progress | Model v1 deployed, batch scoring running, drift monitor configured |
 | Phase 3 — Enrichment and Knowledge Stores | ⬜ Not Started | AI Search populated, vector stores loaded, 30 reference outputs written |
 | Phase 4 — Agent Pipeline | ⬜ Not Started | Three agents working end to end, review queue live in dashboard |
 | Phase 5 — Integration and Final Validation | ⬜ Not Started | Full weekly cycle runs, drift simulation complete, all 5 dashboard pages live |
@@ -83,13 +83,13 @@ Update this file as you complete each task. Replace `[ ]` with `[x]` when done.
 
 ### 1.5 Minimal Streamlit Dashboard (Phase 1 scope)
 
-- [ ] `dashboard/app.py` created
-- [ ] `dashboard/pages/01_data_overview.py` created
-  - [ ] Customer count by segment and region
-  - [ ] Product distribution chart
-  - [ ] Churn rate by segment (Population A)
-  - [ ] Key feature distributions (`days_since_last_login`, `competitor_transfer_count`, `complaints_open`)
-- [ ] Dashboard running locally against Azure SQL
+- [x] `dashboard/app.py` created
+- [x] `dashboard/pages/01_data_overview.py` created
+  - [x] Customer count by segment and region
+  - [x] Product distribution chart
+  - [x] Churn rate by segment (Population A)
+  - [x] Key feature distributions (`days_since_last_login`, `competitor_transfer_count`, `complaints_open`)
+- [x] Dashboard running locally against Azure SQL
 
 **✅ Phase 1 done when:** Both resource groups provisioned via Bicep CI/CD ✓, Population A in Azure SQL, minimal dashboard showing data statistics.
 
@@ -102,81 +102,81 @@ Update this file as you complete each task. Replace `[ ]` with `[x]` when done.
 
 ### 2.1 Feature Engineering Pipeline
 
-- [ ] `ml/features/feature_set.py` — feature definitions in Azure ML managed feature store
-  - [ ] `days_since_last_login`
-  - [ ] `competitor_transfer_count` (last 90 days)
-  - [ ] `complaints_open`
-  - [ ] `months_to_rate_reset`
-  - [ ] `avg_monthly_inflow_eur`
-  - [ ] `app_logins_last_30d`
-  - [ ] `app_logins_last_90d`
-  - [ ] `salary_domiciled`
-  - [ ] `product_count`
-  - [ ] `nps_score_last`
-- [ ] `ml/features/feature_pipeline.py` — Azure ML pipeline: SQL → feature store
-  - [ ] Runs on serverless compute
+- [x] `ml/features/feature_set.py` — feature definitions in Azure ML managed feature store
+  - [x] `days_since_last_login`
+  - [x] `competitor_transfer_count` (last 90 days)
+  - [x] `complaints_open`
+  - [x] `months_to_rate_reset`
+  - [x] `avg_monthly_inflow_eur`
+  - [x] `app_logins_last_30d`
+  - [x] `app_logins_last_90d`
+  - [x] `salary_account_flag` (column name in SQL — same concept as salary_domiciled)
+  - [x] `product_count`
+  - [x] `nps_score_last`
+- [x] `ml/features/feature_pipeline.py` — Azure ML pipeline: SQL → feature store
+  - [x] Runs on serverless compute (Standard_DS3_v2)
   - [ ] Scheduled weekly (Sunday night)
-  - [ ] Uses feature pipeline compute MI for SQL access
+  - [x] Uses feature pipeline compute MI for SQL access
   - [ ] Feature pipeline run tested manually at least once
 
 ### 2.2 Model Training — v1 (Population A)
 
-- [ ] `ml/training/train.py` — gradient boosting binary classifier
-  - [ ] Reads feature store snapshot tagged `dataset_version=population_a`
-  - [ ] 80/20 train/test split
-  - [ ] Full MLflow logging schema implemented:
-    - [ ] Parameters: `model_type`, `n_estimators`, `max_depth`, `learning_rate`, `dataset_version`, `churn_threshold`, `feature_set_version`
-    - [ ] Metrics: `accuracy`, `precision`, `recall`, `f1`, `auc`, `false_positive_rate`
-    - [ ] Artifacts: `confusion_matrix.png`, `feature_importance.png`
-- [ ] `ml/training/pipeline.py` — Azure ML training pipeline definition
-  - [ ] Runs on serverless compute
-  - [ ] Outputs registered model to model registry with `status = staging`
+- [x] `ml/training/train.py` — gradient boosting binary classifier (LightGBM)
+  - [x] Reads feature store snapshot tagged `dataset_version=population_a`
+  - [x] 80/20 train/test split
+  - [x] Full MLflow logging schema implemented:
+    - [x] Parameters: `model_type`, `n_estimators`, `max_depth`, `learning_rate`, `dataset_version`, `churn_threshold`, `feature_set_version`
+    - [x] Metrics: `precision`, `recall`, `f1`, `auc`, `false_positive_rate`
+    - [x] Artifacts: `confusion_matrix.png`, `feature_importance.png`
+- [x] `ml/training/pipeline.py` — Azure ML training pipeline definition
+  - [x] Runs on serverless compute (Standard_DS3_v2)
+  - [x] Outputs registered model to model registry with `status = staging`
 - [ ] Model v1 registered in Azure ML model registry
 
 ### 2.3 Model Evaluation and Deployment
 
-- [ ] `ml/training/evaluate.py` — evaluation script
-  - [ ] Computes all metrics against held-out test set
-  - [ ] Fails pipeline if precision < 0.75
-- [ ] Online endpoint deployed via Bicep (not manual portal)
-  - [ ] `ml/scoring/score.py` scoring script written
+- [x] `ml/training/evaluate.py` — evaluation script
+  - [x] Computes all metrics against held-out test set
+  - [x] Fails pipeline if precision < 0.75
+- [x] Online endpoint deployed via Bicep (not manual portal)
+  - [x] `ml/scoring/score.py` scoring script written
   - [ ] Canary deployment structure in place (v1 = 100% traffic initially)
-- [ ] `ml/scoring/batch_score.py` — weekly batch scoring job
-  - [ ] Reads all 50,000 customers from feature store
-  - [ ] Applies `churn_threshold = 0.70`
-  - [ ] Writes `high_risk_batch.csv` to Blob Storage
+- [x] `ml/scoring/batch_score.py` — weekly batch scoring job
+  - [x] Reads all 50,000 customers from feature store
+  - [x] Applies `churn_threshold = 0.70`
+  - [x] Writes `high_risk_batch.csv` to Blob Storage
   - [ ] Batch score job tested manually — `high_risk_batch.csv` produced (~800 rows)
 
 ### 2.4 Model Monitoring
 
-- [ ] `ml/monitoring/drift_monitor.py` — Azure ML Model Monitor configured
-  - [ ] Data drift signal: feature distribution vs Population A baseline
-  - [ ] Model performance signal: precision, recall, F1 vs validation baseline
-  - [ ] Alert threshold: precision drop below 0.72
-- [ ] `ml/monitoring/alerts.py` — Event Grid topic subscription configured
-  - [ ] On drift alert: triggers `retrain.yml` GitHub Actions workflow
-- [ ] `.github/workflows/retrain.yml` — retraining pipeline written
-  - [ ] Seeds Population B data into Azure SQL
-  - [ ] Runs feature pipeline on new data
-  - [ ] Runs training pipeline with `dataset_version=population_b`
-  - [ ] Registers v2 as staging
-  - [ ] Initiates canary deployment: v2 10% / v1 90%
-  - [ ] Notifies model owner for approval
+- [x] `ml/monitoring/drift_monitor.py` — Azure ML Model Monitor configured
+  - [x] Data drift signal: feature distribution vs Population A baseline
+  - [x] Model performance signal: precision, recall, F1 vs validation baseline
+  - [x] Alert threshold: precision drop below 0.72
+- [x] `ml/monitoring/alerts.py` — Event Grid topic subscription configured
+  - [x] On drift alert: triggers `retrain.yml` GitHub Actions workflow
+- [x] `.github/workflows/retrain.yml` — retraining pipeline written
+  - [x] Seeds Population B data into Azure SQL
+  - [x] Runs feature pipeline on new data
+  - [x] Runs training pipeline with `dataset_version=population_b`
+  - [x] Registers v2 as staging
+  - [x] Initiates canary deployment: v2 10% / v1 90%
+  - [x] Notifies model owner for approval
 
 ### 2.5 Human Approval Gate
 
-- [ ] `ml/registry/promote.py` — model promotion script written
-  - [ ] Updates model registry tag: staging → production
-  - [ ] Updates canary split to v2 100% / v1 0%
+- [x] `ml/registry/promote.py` — model promotion script written
+  - [x] Updates model registry tag: staging → production
+  - [x] Updates canary split to v2 100% / v1 0%
 - [ ] Promotion tested manually: v2 promoted to production in model registry
 
 ### 2.6 Dashboard Extension (Phase 2 scope)
 
-- [ ] `dashboard/pages/02_ml_monitoring.py` created
-  - [ ] MLflow experiment run history (precision, recall, F1, AUC per run)
-  - [ ] Current model version in production
-  - [ ] Drift signal status (green / amber / red)
-  - [ ] Canary split view if active (v1 vs v2 metric comparison)
+- [x] `dashboard/pages/02_ml_monitoring.py` created
+  - [x] MLflow experiment run history (precision, recall, F1, AUC per run)
+  - [x] Current model version in production
+  - [x] Drift signal status (green / amber / red)
+  - [x] Canary split view if active (v1 vs v2 metric comparison)
 
 **✅ Phase 2 done when:** Model v1 trained and deployed, batch scoring producing `high_risk_batch.csv`, drift monitor configured, retraining pipeline tested end to end, canary structure in place.
 
