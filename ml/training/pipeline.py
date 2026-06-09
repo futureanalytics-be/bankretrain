@@ -67,7 +67,7 @@ def build_pipeline(args, env: Environment):
             "AZURE_CLIENT_ID":       args.mi_client_id,
         },
         compute=args.compute,
-        resources=JobResourceConfiguration(instance_type="Standard_DS3_v2", instance_count=1),
+        resources=JobResourceConfiguration(instance_type="Standard_DS2_v2", instance_count=1),
     )
 
     # ── Step 2: Training (parquet → model + metrics.json) ─────────────────────
@@ -88,7 +88,7 @@ def build_pipeline(args, env: Environment):
         inputs={"features_path": Input(type="uri_folder")},
         outputs={"model_output": Output(type="uri_folder")},
         compute=args.compute,
-        resources=JobResourceConfiguration(instance_type="Standard_DS3_v2", instance_count=1),
+        resources=JobResourceConfiguration(instance_type="Standard_DS2_v2", instance_count=1),
     )
 
     # ── Step 3: Evaluate + register ───────────────────────────────────────────
