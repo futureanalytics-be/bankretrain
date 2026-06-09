@@ -146,8 +146,8 @@ def submit_pipeline(args) -> None:
     from azure.ai.ml import MLClient, command, Input, Output
     from azure.ai.ml.entities import (
         Environment,
+        ManagedIdentityConfiguration,
         ResourceConfiguration,
-        UserAssignedIdentityConfiguration,
     )
 
     client = MLClient(
@@ -183,12 +183,6 @@ def submit_pipeline(args) -> None:
         image="mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu22.04",
     )
 
-    mi_resource_id = (
-        f"/subscriptions/{args.subscription_id}"
-        f"/resourceGroups/{args.resource_group}"
-        f"/providers/Microsoft.ManagedIdentity"
-        f"/userAssignedIdentities/bankretain-mi-featurepipeline-dev"
-    )
 
     feature_job = command(
         name="feature_extraction",
@@ -216,7 +210,7 @@ def submit_pipeline(args) -> None:
             instance_type="Standard_DS3_v2",
             instance_count=1,
         ),
-        identity=UserAssignedIdentityConfiguration(resource_id=mi_resource_id),
+        identity=ManagedIdentityConfiguration(client_id=args.mi_client_id),
         experiment_name="bankretain-feature-pipeline",
     )
 
