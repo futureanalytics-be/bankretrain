@@ -25,53 +25,25 @@ import os
 
 from azure.ai.ml import Input, MLClient, Output, command
 from azure.ai.ml.dsl import pipeline
-from azure.ai.ml.entities import Environment, ResourceConfiguration, UserAssignedIdentityConfiguration
+from azure.ai.ml.entities import BuildContext, Environment, JobResourceConfiguration
 from azure.identity import DefaultAzureCredential
 
 REPO_ROOT    = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FEATURES_DIR = os.path.join(REPO_ROOT, "ml", "features")
 TRAINING_DIR = os.path.join(REPO_ROOT, "ml", "training")
-
-ML_ENV_SPEC = {
-    "name": "bankretain-ml-env",
-    "channels": ["conda-forge", "defaults"],
-    "dependencies": [
-        "python=3.10",
-        "pip",
-        {"pip": [
-            "azure-ai-ml>=1.12",
-            "azure-identity>=1.15",
-            "lightgbm>=4.0",
-            "scikit-learn>=1.3",
-            "pandas>=2.0",
-            "pyodbc",
-            "pyarrow>=13",
-            "mlflow>=2.10",
-            "matplotlib>=3.7",
-            "seaborn>=0.13",
-        ]},
-    ],
-}
+DOCKER_DIR   = os.path.join(REPO_ROOT, "ml", "docker")
 
 
 def build_environment() -> Environment:
     return Environment(
         name="bankretain-ml-env",
-        description="BankRetain ML pipeline — Python 3.10 + LightGBM + Azure SDK",
-        conda_file=ML_ENV_SPEC,
-        image="mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu22.04",
+        description="BankRetain ML pipeline — Python 3.10 + LightGBM + Azure SDK + ODBC Driver 18",
+        build=BuildContext(path=DOCKER_DIR),
         tags={"project": "bankretain"},
     )
 
 
 def build_pipeline(args, env: Environment):
-    mi_resource_id = (
-        f"/subscriptions/{args.subscription_id}"
-        f"/resourceGroups/{args.resource_group}"
-        f"/providers/Microsoft.ManagedIdentity"
-        f"/userAssignedIdentities/bankretain-mi-featurepipeline-dev"
-    )
-
     # ── Step 1: Feature extraction (SQL → parquet) ────────────────────────────
     feature_step = command(
         name="feature_extraction",
@@ -94,8 +66,8 @@ def build_pipeline(args, env: Environment):
             "BANKRETAIN_SQL_DB":     args.sql_db,
             "AZURE_CLIENT_ID":       args.mi_client_id,
         },
-        resources=ResourceConfiguration(instance_type="Standard_DS3_v2", instance_count=1),
-        identity=UserAssignedIdentityConfiguration(resource_id=mi_resource_id),
+        compute=args.compute,
+        resources=JobResourceConfiguration(instance_type="Standard_DS3_v2", instance_count=1),
     )
 
     # ── Step 2: Training (parquet → model + metrics.json) ─────────────────────
@@ -109,10 +81,14 @@ def build_pipeline(args, env: Environment):
             "--model-output ${{outputs.model_output}}"
         ),
         environment=env,
-        environment_variables={"DATASET_VERSION": args.dataset_version},
+        environment_variables={
+            "DATASET_VERSION": args.dataset_version,
+            "AZURE_CLIENT_ID": args.mi_client_id,
+        },
         inputs={"features_path": Input(type="uri_folder")},
         outputs={"model_output": Output(type="uri_folder")},
-        resources=ResourceConfiguration(instance_type="Standard_DS3_v2", instance_count=1),
+        compute=args.compute,
+        resources=JobResourceConfiguration(instance_type="Standard_DS3_v2", instance_count=1),
     )
 
     # ── Step 3: Evaluate + register ───────────────────────────────────────────
@@ -133,7 +109,8 @@ def build_pipeline(args, env: Environment):
             "model_path":      Input(type="uri_folder"),
             "dataset_version": Input(type="string"),
         },
-        resources=ResourceConfiguration(instance_type="Standard_DS2_v2", instance_count=1),
+        compute=args.compute,
+        resources=JobResourceConfiguration(instance_type="Standard_DS2_v2", instance_count=1),
     )
 
     @pipeline(
@@ -195,6 +172,8 @@ if __name__ == "__main__":
                         default=os.environ.get("AZURE_CLIENT_ID", ""))
     parser.add_argument("--snapshot-date",    dest="snapshot_date",   default="2025-04-01")
     parser.add_argument("--dataset-version",  dest="dataset_version", default="population_a")
+    parser.add_argument("--compute",          default="serverless",
+                        help="AML compute name, or 'serverless'")
     parser.add_argument("--wait",             action="store_true",
                         help="Stream logs and wait for the pipeline to complete")
     args = parser.parse_args()
