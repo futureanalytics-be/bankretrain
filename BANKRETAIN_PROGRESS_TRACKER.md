@@ -145,7 +145,7 @@ Update this file as you complete each task. Replace `[ ]` with `[x]` when done.
   - [x] Reads all 50,000 customers from feature store
   - [x] Applies `churn_threshold = 0.70`
   - [x] Writes `high_risk_batch.csv` to Blob Storage
-  - [ ] Batch score job tested manually — `high_risk_batch.csv` produced (~800 rows)
+  - [x] Batch score job tested manually — `high_risk_batch.csv` produced (~800 rows)
 
 ### 2.4 Model Monitoring
 
