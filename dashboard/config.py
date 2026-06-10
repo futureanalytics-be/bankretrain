@@ -55,11 +55,11 @@ def _install_ms_odbc():
     # 22.04 (jammy) and 24.04 (noble); hardcoding a version breaks on upgrades.
     _SCRIPT = """
 set -e
-UBUNTU_VER=$(lsb_release -rs)
-UBUNTU_CODENAME=$(lsb_release -cs)
-curl -fsSL "https://packages.microsoft.com/config/ubuntu/${UBUNTU_VER}/packages-microsoft-prod.deb" \
-    -o /tmp/packages-microsoft-prod.deb
-sudo dpkg -i /tmp/packages-microsoft-prod.deb
+. /etc/os-release
+curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+    | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc > /dev/null
+curl -fsSL "https://packages.microsoft.com/config/ubuntu/${VERSION_ID}/prod.list" \
+    | sudo tee /etc/apt/sources.list.d/mssql-release.list > /dev/null
 sudo apt-get update -qq
 sudo ACCEPT_EULA=Y DEBIAN_FRONTEND=noninteractive apt-get install -yq msodbcsql18
 """
