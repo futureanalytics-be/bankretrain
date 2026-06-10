@@ -197,9 +197,19 @@ def load_production_model(subscription_id, resource_group, workspace_name, cred)
 
     # Download artifacts to temp dir; avoids azureml:// MLflow URI (needs azureml-mlflow)
     download_path = os.path.join(tempfile.gettempdir(), f"bankretain-model-v{latest.version}")
-    model_dir = os.path.join(download_path, MODEL_NAME)
-    if not os.path.exists(model_dir):
+    if not os.path.exists(download_path) or not any(os.scandir(download_path)):
+        os.makedirs(download_path, exist_ok=True)
         client.models.download(name=MODEL_NAME, version=latest.version, download_path=download_path)
+
+    # Walk to find MLmodel — download path structure varies by SDK version
+    model_dir = None
+    for root, _dirs, files in os.walk(download_path):
+        if "MLmodel" in files:
+            model_dir = root
+            break
+    if model_dir is None:
+        raise RuntimeError(f"MLmodel not found under {download_path} after download")
+
     model = mlflow.lightgbm.load_model(model_dir)
     return model, latest.version
 
