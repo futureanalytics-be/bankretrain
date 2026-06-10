@@ -12,7 +12,8 @@ import time
 import streamlit as st
 import pyodbc
 from azure.identity import DefaultAzureCredential
-import config  # noqa: F401 — bootstraps os.environ + installs ODBC driver on Linux
+import config  # noqa: F401 — bootstraps os.environ from st.secrets
+from config import _install_ms_odbc
 
 
 @st.cache_resource(show_spinner=False)
@@ -21,6 +22,7 @@ def _credential() -> DefaultAzureCredential:
 
 
 def _connect() -> pyodbc.Connection:
+    _install_ms_odbc()  # no-op if already installed; runs once on first DB call
     server   = os.environ["BANKRETAIN_SQL_SERVER"]
     database = os.environ["BANKRETAIN_SQL_DB"]
 

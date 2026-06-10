@@ -72,4 +72,5 @@ sudo ACCEPT_EULA=Y DEBIAN_FRONTEND=noninteractive apt-get install -yq msodbcsql1
         pass  # Connection attempt will surface the error with a clear message
 
 
-_install_ms_odbc()
+# Called lazily from db.py on first connection attempt — not at import time,
+# so Streamlit can start serving the UI before the ~90s install completes.
