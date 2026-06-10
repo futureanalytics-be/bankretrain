@@ -54,6 +54,7 @@ env:
   DATASET_VERSION: ${{ github.event.inputs.dataset_version || 'population_b' }}
   SNAPSHOT_DATE:   ${{ github.event.inputs.snapshot_date  || '2025-10-01' }}
   CANARY_TRAFFIC:  ${{ github.event.inputs.canary_traffic  || '10' }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ---------------------------------------------------------------------------

@@ -22,10 +22,10 @@ param foundryHubName string
 var suffix         = uniqueString(resourceGroup().id)
 var aiServicesName = 'bankretain-ai-svc-${environment}-${take(suffix, 6)}'
 var projectName    = 'bankretain-agents-${environment}'
-var connectionName = 'bankretain-gpt4o-connection'
+var connectionName = 'bankretain-gpt41-connection'
 
-// GPT-4o capacity (TPM in thousands). 10k TPM covers the weekly batch pipeline.
-var gpt4oCapacity  = 10
+// gpt-4.1 capacity (TPM in thousands). 10k TPM covers the weekly batch pipeline.
+var gpt41Capacity  = 10
 
 // ---------------------------------------------------------------------------
 // Azure AI Services account
@@ -61,18 +61,18 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = 
 // GPT-4o deployment
 // ---------------------------------------------------------------------------
 
-resource gpt4oDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
+resource gpt41Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
   parent: aiServices
-  name: 'gpt-4o'
+  name: 'gpt-4.1'
   sku: {
     name: 'GlobalStandard'
-    capacity: gpt4oCapacity
+    capacity: gpt41Capacity
   }
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-4o'
-      version: '2024-11-20'
+      name: 'gpt-4.1'
+      version: '2025-04-14'
     }
     versionUpgradeOption: 'OnceCurrentVersionExpired'
   }
@@ -92,7 +92,7 @@ resource foundryProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-0
   properties: {
     description: 'BankRetain agent pipeline — churn classification, offer selection, compliance review'
   }
-  dependsOn: [gpt4oDeployment]
+  dependsOn: [gpt41Deployment]
 }
 
 // ---------------------------------------------------------------------------
@@ -112,7 +112,7 @@ resource hubConnection 'Microsoft.MachineLearningServices/workspaces/connections
       ResourceId: aiServices.id
     }
   }
-  dependsOn: [gpt4oDeployment]
+  dependsOn: [gpt41Deployment]
 }
 
 // ---------------------------------------------------------------------------

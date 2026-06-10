@@ -40,6 +40,7 @@ env:
   AI_RESOURCE_GROUP: bankretain-ai-rg
   LOCATION: switzerlandnorth
   ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ---------------------------------------------------------------------------
