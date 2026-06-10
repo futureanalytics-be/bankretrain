@@ -23,6 +23,7 @@ import io
 import os
 import struct
 import sys
+from typing import Optional
 
 import mlflow
 import mlflow.lightgbm
@@ -99,7 +100,7 @@ GROUP BY c.customer_id, c.segment, c.region, c.salary_account_flag
 """
 
 
-def _credential(mi_client_id: str | None):
+def _credential(mi_client_id: Optional[str]):
     if mi_client_id:
         return ManagedIdentityCredential(client_id=mi_client_id)
     return DefaultAzureCredential()
