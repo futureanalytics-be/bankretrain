@@ -62,7 +62,7 @@ if not df_reason.empty:
     )
     fig.update_traces(texttemplate="%{text}%", textposition="outside")
     fig.update_layout(coloraxis_showscale=False, height=max(300, len(df_reason) * 32 + 80))
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig)
 else:
     st.info("No pipeline data yet.")
 
@@ -112,7 +112,7 @@ if not df_batch.empty and len(df_batch) > 0:
             xaxis_title="Batch date",
             height=300,
         )
-        st.plotly_chart(fig2, width="stretch")
+        st.plotly_chart(fig2)
     with col2:
         st.dataframe(
             df_batch[["batch_date", "approved", "queued", "total", "pass_pct"]]
@@ -161,7 +161,7 @@ if not df_signals.empty:
             labels={"churn_signal_count": "Churn signals (count)", "value": "Customers"},
         )
         fig3.update_layout(height=300, legend_title="Outcome")
-        st.plotly_chart(fig3, width="stretch")
+        st.plotly_chart(fig3)
     with col2:
         fig4 = px.line(
             df_pivot, x="churn_signal_count", y="pass_pct",
@@ -170,7 +170,7 @@ if not df_signals.empty:
         )
         fig4.update_traces(line_color="#2196F3", marker_size=8)
         fig4.update_layout(yaxis=dict(range=[0, 105]), height=300)
-        st.plotly_chart(fig4, width="stretch")
+        st.plotly_chart(fig4)
 else:
     st.info("No joined signal data available.")
 
@@ -212,7 +212,7 @@ if not df_queue_raw.empty:
             labels={"x": "Rule", "y": "Churn reason", "color": "Violations"},
         )
         fig5.update_layout(height=max(300, len(df_heat) * 40 + 100))
-        st.plotly_chart(fig5, width="stretch")
+        st.plotly_chart(fig5)
     else:
         st.info("Could not parse rule violations.")
 else:
@@ -251,7 +251,7 @@ if not df_tokens.empty:
         )
         fig6.update_traces(textposition="outside")
         fig6.update_layout(coloraxis_showscale=False, height=max(300, len(df_tokens) * 32 + 80))
-        st.plotly_chart(fig6, width="stretch")
+        st.plotly_chart(fig6)
     with col2:
         st.dataframe(
             df_tokens[["churn_reason", "customers", "avg_tokens", "total_tokens"]]
@@ -294,6 +294,6 @@ if not df_channel.empty:
         labels={"churn_reason": "Churn reason", "value": "Customers", "variable": "Channel"},
     )
     fig7.update_layout(height=350, xaxis_tickangle=-30)
-    st.plotly_chart(fig7, width="stretch")
+    st.plotly_chart(fig7)
 else:
     st.info("No channel data available.")

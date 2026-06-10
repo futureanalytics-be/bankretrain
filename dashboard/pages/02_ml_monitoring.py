@@ -162,7 +162,7 @@ try:
             fig.add_hline(y=0.75, line_dash="dash", line_color="orange",
                           annotation_text="Precision gate (0.75)")
             fig.update_xaxes(title="Run (0 = most recent)")
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig)
 
 except Exception as e:
     st.error(f"Could not load experiment runs: {e}")
@@ -194,7 +194,7 @@ try:
             title="Current Traffic Split",
             color_discrete_sequence=px.colors.qualitative.Set2,
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig)
 
         st.markdown(
             "To promote the canary to 100%:\n"

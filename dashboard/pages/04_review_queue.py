@@ -118,7 +118,7 @@ if "violated_rules" in queue_df.columns:
         )
         fig.update_layout(height=300, margin=dict(t=40, b=0),
                           coloraxis_showscale=False, yaxis={"autorange": "reversed"})
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig)
 
 # ── Queue table ───────────────────────────────────────────────────────────────
 

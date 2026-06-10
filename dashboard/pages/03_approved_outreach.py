@@ -108,7 +108,7 @@ if "churn_reason" in df.columns:
             title="Messages by churn reason",
         )
         fig.update_layout(showlegend=False, height=250, margin=dict(t=40, b=0))
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig)
 
     with col_conf:
         if "confidence" in df.columns:
@@ -122,7 +122,7 @@ if "churn_reason" in df.columns:
                 hole=0.4,
             )
             fig2.update_layout(height=250, margin=dict(t=40, b=0))
-            st.plotly_chart(fig2, width="stretch")
+            st.plotly_chart(fig2)
 
 # ── Message table ─────────────────────────────────────────────────────────────
 
