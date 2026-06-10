@@ -1,8 +1,8 @@
 # BankRetain
 
-**Customer Churn Predictor & AI-Driven Retention Campaign Orchestrator**
+## Customer Churn Predictor & AI-Driven Retention Campaign Orchestrator
 
-End-to-end MLOps and GenAI portfolio project on Azure — built for the AI-103 and AI-300 certification exams. Covers the full lifecycle from synthetic data generation through ML model training, agent-based campaign generation, compliance review, and a live Streamlit dashboard.
+End-to-end MLOps and GenAI portfolio project on Azure — built for the AI-103 (Developing AI Apps and Agents on Azure) and AI-300 (Operationalizing Machine Learning and Generative AI Solutions) certification exams. Covers the full lifecycle from synthetic data generation through ML model training, agent-based campaign generation, compliance review, and a live Streamlit dashboard.
 
 **Live dashboard:** [bankretain.streamlit.app](https://bankretain.streamlit.app)
 
@@ -25,7 +25,7 @@ End-to-end MLOps and GenAI portfolio project on Azure — built for the AI-103 a
 
 ## Architecture
 
-```
+```text
 Azure SQL (50k synthetic customers)
         │
         ▼
@@ -64,7 +64,7 @@ Azure ML Pipeline ──► Feature Store ──► LightGBM Churn Model
 
 ## Repository structure
 
-```
+```text
 bankretain/
 ├── infra/
 │   ├── ml-rg/          # Bicep — Azure ML workspace, SQL, Storage, Key Vault, RBAC
@@ -241,6 +241,7 @@ Azure SQL is configured with Entra-only authentication — there is no SQL usern
 ### Zero secrets in code
 
 No API keys, connection strings, or client secrets appear in any code file. All secrets flow through:
+
 - Azure Key Vault (AI Search admin key, retrieved at runtime via Managed Identity)
 - `st.secrets` → `os.environ` (Streamlit dashboard, bootstrapped by `config.py`)
 - `sql.env` (local dev only, gitignored)
@@ -258,4 +259,4 @@ No API keys, connection strings, or client secrets appear in any code file. All 
 
 ---
 
-*Last updated: June 2026*
+Last updated: June 2026

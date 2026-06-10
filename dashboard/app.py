@@ -24,8 +24,8 @@ st.set_page_config(
 st.title("BankRetain — Customer Churn & Retention")
 st.markdown(
     "End-to-end churn prediction and AI-driven retention campaign pipeline on Azure. "
-    "Built as a portfolio project for **AI-103** (Azure AI Fundamentals) and "
-    "**AI-300** (Azure AI Engineer Associate)."
+    "Built as a portfolio project for **AI-103** (Developing AI Apps and Agents on Azure) and "
+    "**AI-300** (Operationalizing Machine Learning and Generative AI Solutions)."
 )
 
 st.divider()
