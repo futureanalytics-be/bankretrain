@@ -1,11 +1,15 @@
 // =============================================================================
 // BankRetain — Azure AI Services Module
-// Deploys: Azure AI Services account (kind=AIServices, swedencentral),
-//          gpt-4.1 model deployment, Foundry project, and hub connection.
+// Deploys: Azure AI Services account (kind=AIServices, germanywestcentral),
+//          Foundry project, and hub connection.
 //
-// Location: swedencentral — switzerlandnorth has 0 GlobalStandard quota for
-// gpt-4.1. The AI Services account is cross-region from the rest of the
-// infrastructure; the Foundry hub connection bridges them.
+// Location: germanywestcentral — only region allowed by subscription policy
+// that also supports AIServices kind.
+//
+// NOTE: Model deployment is NOT managed here. This subscription has 0
+// GlobalStandard quota for all GPT models in all allowed regions. Request a
+// quota increase via Azure Portal → Quotas → Azure OpenAI, then deploy the
+// model manually or add it back once quota is granted.
 // =============================================================================
 
 targetScope = 'resourceGroup'
@@ -23,12 +27,9 @@ var aiServicesName = 'bankretain-ai-svc-${environment}-${take(suffix, 6)}'
 var projectName    = 'bankretain-agents-${environment}'
 var connectionName = 'bankretain-aiservices-connection'
 
-// gpt-4o-mini capacity (TPM in thousands). 10k TPM covers the weekly batch pipeline.
-var gpt4oMiniCapacity = 10
-
 // ---------------------------------------------------------------------------
 // Azure AI Services account
-// Kind = AIServices gives access to Agent Service + file search + gpt-4.1.
+// Kind = AIServices gives access to Agent Service + file search.
 // allowProjectManagement = true enables Foundry project creation on this account.
 // ---------------------------------------------------------------------------
 
@@ -57,27 +58,6 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = 
 }
 
 // ---------------------------------------------------------------------------
-// gpt-4.1 deployment
-// ---------------------------------------------------------------------------
-
-resource gpt4oMiniDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
-  parent: aiServices
-  name: 'gpt-4o-mini'
-  sku: {
-    name: 'GlobalStandard'
-    capacity: gpt4oMiniCapacity
-  }
-  properties: {
-    model: {
-      format: 'OpenAI'
-      name: 'gpt-4o-mini'
-      version: '2024-07-18'
-    }
-    versionUpgradeOption: 'OnceCurrentVersionExpired'
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Foundry project — scopes agents and vector stores to this project
 // ---------------------------------------------------------------------------
 
@@ -91,7 +71,6 @@ resource foundryProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-0
   properties: {
     description: 'BankRetain agent pipeline — churn classification, offer selection, compliance review'
   }
-  dependsOn: [gpt4oMiniDeployment]
 }
 
 // ---------------------------------------------------------------------------
@@ -110,7 +89,6 @@ resource hubConnection 'Microsoft.MachineLearningServices/workspaces/connections
       ResourceId: aiServices.id
     }
   }
-  dependsOn: [gpt4oMiniDeployment]
 }
 
 // ---------------------------------------------------------------------------
