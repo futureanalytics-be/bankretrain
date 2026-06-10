@@ -4,8 +4,10 @@
 Shows:
   - Current model version in production / staging
   - MLflow experiment run history (precision, recall, F1, AUC per run)
-  - Drift monitor status (from AML monitor schedules)
   - Canary split view if active (v1 vs v2 metric comparison)
+
+Drift monitoring: handled in-pipeline (submit_enrichment.py) — no AML
+monitor schedule required.
 """
 
 import sys
@@ -21,7 +23,7 @@ import mlflow
 
 st.set_page_config(page_title="ML Monitoring — BankRetain", layout="wide")
 st.title("ML Monitoring")
-st.caption("Churn model registry, experiment history, and drift status")
+st.caption("Churn model registry and experiment history")
 
 
 # ── AML client ────────────────────────────────────────────────────────────────
@@ -164,33 +166,6 @@ try:
 
 except Exception as e:
     st.error(f"Could not load experiment runs: {e}")
-
-st.divider()
-
-# ── Drift monitor status ───────────────────────────────────────────────────────
-
-st.subheader("Drift Monitor Status")
-
-try:
-    client   = _aml_client()
-    schedule = client.schedules.get("bankretain-churn-monitor")
-    status   = schedule.is_enabled
-
-    col1, col2 = st.columns(2)
-    col1.metric("Monitor Schedule", "Enabled" if status else "Disabled")
-    col2.metric("Alert Thresholds",
-                "Precision < 0.72 | Drift > 0.15")
-
-    st.caption(
-        "Monitor checks run every Monday 02:00 UTC. "
-        "Alerts fire to Event Grid → retrain.yml workflow."
-    )
-
-except Exception:
-    st.info(
-        "Monitor schedule not yet configured. "
-        "Run `drift_monitor.py` after the first batch scoring job."
-    )
 
 st.divider()
 
