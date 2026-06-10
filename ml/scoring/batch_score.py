@@ -23,6 +23,7 @@ import io
 import os
 import struct
 import sys
+import time
 from typing import Optional
 
 import mlflow
@@ -117,7 +118,15 @@ def _sql_connect(sql_server: str, sql_db: str, cred) -> pyodbc.Connection:
         f"Encrypt=yes;"
         f"TrustServerCertificate=no;"
     )
-    return pyodbc.connect(conn_str, attrs_before={1256: token_struct}, timeout=60, autocommit=True)
+    for attempt in range(1, 4):
+        try:
+            return pyodbc.connect(conn_str, attrs_before={1256: token_struct}, timeout=60, autocommit=True)
+        except pyodbc.Error as e:
+            if "40613" in str(e) and attempt < 3:
+                print(f"Database waking from auto-pause, retrying in 20s (attempt {attempt}/3)...")
+                time.sleep(20)
+            else:
+                raise
 
 
 def fetch_features(sql_server: str, sql_db: str, snapshot_date: str, cred) -> pd.DataFrame:
