@@ -1,19 +1,17 @@
 """
 db.py — Azure SQL connection helper for the BankRetain dashboard.
 
-Creates a fresh connection per query to avoid pyodbc "connection busy"
-errors when Streamlit runs multiple elements concurrently.
-The Entra token is cached so credential round-trips only happen on expiry.
+Uses pymssql (bundles FreeTDS, no system ODBC driver required) with an
+Azure AD access token — compatible with Streamlit Community Cloud where
+sudo is not available to install Microsoft ODBC Driver 18.
 """
 
 import os
-import struct
 import time
 import streamlit as st
-import pyodbc
+import pymssql
 from azure.identity import DefaultAzureCredential
 import config  # noqa: F401 — bootstraps os.environ from st.secrets
-from config import _install_ms_odbc
 
 
 @st.cache_resource(show_spinner=False)
@@ -21,23 +19,17 @@ def _credential() -> DefaultAzureCredential:
     return DefaultAzureCredential()
 
 
-def _connect() -> pyodbc.Connection:
-    _install_ms_odbc()  # no-op if already installed; runs once on first DB call
+def _connect() -> pymssql.Connection:
     server   = os.environ["BANKRETAIN_SQL_SERVER"]
     database = os.environ["BANKRETAIN_SQL_DB"]
 
-    token        = _credential().get_token("https://database.windows.net/.default")
-    token_bytes  = token.token.encode("UTF-16-LE")
-    token_struct = struct.pack(f"<I{len(token_bytes)}s", len(token_bytes), token_bytes)
+    token = _credential().get_token("https://database.windows.net/.default")
 
-    conn_str = (
-        f"Driver={{ODBC Driver 18 for SQL Server}};"
-        f"Server={server};"
-        f"Database={database};"
-        f"Encrypt=yes;"
-        f"TrustServerCertificate=no;"
+    return pymssql.connect(
+        server=server,
+        database=database,
+        access_token=token.token,
     )
-    return pyodbc.connect(conn_str, attrs_before={1256: token_struct}, timeout=60, autocommit=True)
 
 
 def query(sql: str) -> "pd.DataFrame":
