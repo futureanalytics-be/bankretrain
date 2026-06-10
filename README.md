@@ -158,6 +158,8 @@ python generate.py --population a --seed-sql
 python generate.py --population b       # local only, no SQL
 ```
 
+![Azure SQL customers table](images/azure-sql-dataset.png)
+
 ### 3. Run the ML pipeline
 
 ```bash
@@ -170,6 +172,10 @@ python ml/training/pipeline.py
 # Batch scoring
 python ml/scoring/submit_batch_score.py
 ```
+
+![Azure ML jobs — batch scoring and training pipeline runs](images/job%20and%20commands.png)
+
+![high_risk_batch.csv in Azure Blob Storage](images/high_risk_batch.png)
 
 ### 4. Run the enrichment pipeline
 
@@ -223,6 +229,8 @@ The dashboard reads all data from Azure Blob Storage Parquet files — no ODBC d
 ## Key architectural decisions
 
 ### gpt-oss-120b instead of gpt-4.1
+
+![gpt-oss-120b and text-embedding-3-large deployed in Azure AI Foundry](images/base%20mode%20deployed.png)
 
 This Azure subscription's policy restricts deployments to five regions: `spaincentral`, `uaenorth`, `italynorth`, `germanywestcentral`, `switzerlandnorth`. None of these had OpenAI.GlobalStandard quota for the GPT-4 model family at the time of deployment. `gpt-oss-120b` (format `OpenAI-OSS`) is available via the AIServices quota pool (5000K TPM) in `germanywestcentral` and supports the same chat completions API and structured JSON output.
 
