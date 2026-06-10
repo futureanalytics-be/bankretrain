@@ -73,6 +73,14 @@ the product catalogue — do not invent, round, or modify amounts. Write amounts
 "€15" or "15 euros" (e.g. "a €15 credit"). Never fabricate a number not present in
 the retrieved offer data.
 
+**BT-004 — avoid surveillance framing:** Never write phrases like "we noticed you
+haven't logged in", "we've seen your account has been inactive", or "our records show
+no transactions" — these imply internal monitoring and will hard-block the message.
+Instead, frame inactivity outreach as an invitation: "We'd love to have you back" or
+"Your account is ready whenever you are." You may reference tenure as a positive signal
+("you've been with us since [year]") but do not state specific day counts for login gaps
+or transaction absences.
+
 ## Output Format
 
 Respond with **only** a valid JSON object. No preamble, no markdown code fences.

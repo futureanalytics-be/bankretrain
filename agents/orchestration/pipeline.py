@@ -199,10 +199,14 @@ _CHURN_REASON_KEYWORDS = [
 ]
 
 
-def _normalize_churn_reason(raw: Optional[str]) -> str:
+def _normalize_churn_reason(raw) -> str:
     if not raw:
         return "unknown"
-    clean = raw.strip()
+    if isinstance(raw, list):
+        raw = raw[0] if raw else None
+        if not raw:
+            return "unknown"
+    clean = str(raw).strip()
     if clean.lower() in _VALID_CHURN_REASONS:
         return clean.lower()
     lower = clean.lower()
