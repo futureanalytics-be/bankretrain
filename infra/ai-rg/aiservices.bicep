@@ -1,17 +1,11 @@
 // =============================================================================
 // BankRetain — Azure AI Services Module
-// Deploys: Azure AI Services account (kind=AIServices),
-//          Foundry project (bankretain-agents-dev), and hub connection.
+// Deploys: Azure AI Services account (kind=AIServices, swedencentral),
+//          gpt-4.1 model deployment, Foundry project, and hub connection.
 //
-// NOTE — model deployment is NOT managed by Bicep.
-// GlobalStandard quota for GPT-4.1 in switzerlandnorth must be requested via
-// the Azure Portal (Quotas blade) before deploying a model. After quota is
-// approved, run:
-//   az cognitiveservices account deployment create \
-//     --name <aiServicesName> --resource-group bankretain-ai-rg \
-//     --deployment-name gpt-4.1 \
-//     --model-name gpt-4.1 --model-version 2025-04-14 --model-format OpenAI \
-//     --sku-name GlobalStandard --sku-capacity 10
+// Location: swedencentral — switzerlandnorth has 0 GlobalStandard quota for
+// gpt-4.1. The AI Services account is cross-region from the rest of the
+// infrastructure; the Foundry hub connection bridges them.
 // =============================================================================
 
 targetScope = 'resourceGroup'
@@ -29,9 +23,12 @@ var aiServicesName = 'bankretain-ai-svc-${environment}-${take(suffix, 6)}'
 var projectName    = 'bankretain-agents-${environment}'
 var connectionName = 'bankretain-aiservices-connection'
 
+// gpt-4.1 capacity (TPM in thousands). 10k TPM covers the weekly batch pipeline.
+var gpt41Capacity  = 10
+
 // ---------------------------------------------------------------------------
 // Azure AI Services account
-// Kind = AIServices gives access to Agent Service + file search + GPT-4.1.
+// Kind = AIServices gives access to Agent Service + file search + gpt-4.1.
 // allowProjectManagement = true enables Foundry project creation on this account.
 // ---------------------------------------------------------------------------
 
@@ -60,6 +57,27 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = 
 }
 
 // ---------------------------------------------------------------------------
+// gpt-4.1 deployment
+// ---------------------------------------------------------------------------
+
+resource gpt41Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
+  parent: aiServices
+  name: 'gpt-4.1'
+  sku: {
+    name: 'GlobalStandard'
+    capacity: gpt41Capacity
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: 'gpt-4.1'
+      version: '2025-04-14'
+    }
+    versionUpgradeOption: 'OnceCurrentVersionExpired'
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Foundry project — scopes agents and vector stores to this project
 // ---------------------------------------------------------------------------
 
@@ -73,6 +91,7 @@ resource foundryProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-0
   properties: {
     description: 'BankRetain agent pipeline — churn classification, offer selection, compliance review'
   }
+  dependsOn: [gpt41Deployment]
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +110,7 @@ resource hubConnection 'Microsoft.MachineLearningServices/workspaces/connections
       ResourceId: aiServices.id
     }
   }
+  dependsOn: [gpt41Deployment]
 }
 
 // ---------------------------------------------------------------------------
