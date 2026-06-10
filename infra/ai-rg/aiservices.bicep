@@ -23,8 +23,8 @@ var aiServicesName = 'bankretain-ai-svc-${environment}-${take(suffix, 6)}'
 var projectName    = 'bankretain-agents-${environment}'
 var connectionName = 'bankretain-aiservices-connection'
 
-// gpt-4.1 capacity (TPM in thousands). 10k TPM covers the weekly batch pipeline.
-var gpt41Capacity  = 10
+// gpt-4o-mini capacity (TPM in thousands). 10k TPM covers the weekly batch pipeline.
+var gpt4oMiniCapacity = 10
 
 // ---------------------------------------------------------------------------
 // Azure AI Services account
@@ -60,18 +60,18 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = 
 // gpt-4.1 deployment
 // ---------------------------------------------------------------------------
 
-resource gpt41Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
+resource gpt4oMiniDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
   parent: aiServices
-  name: 'gpt-4.1'
+  name: 'gpt-4o-mini'
   sku: {
     name: 'GlobalStandard'
-    capacity: gpt41Capacity
+    capacity: gpt4oMiniCapacity
   }
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-4.1'
-      version: '2025-04-14'
+      name: 'gpt-4o-mini'
+      version: '2024-07-18'
     }
     versionUpgradeOption: 'OnceCurrentVersionExpired'
   }
@@ -91,7 +91,7 @@ resource foundryProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-0
   properties: {
     description: 'BankRetain agent pipeline — churn classification, offer selection, compliance review'
   }
-  dependsOn: [gpt41Deployment]
+  dependsOn: [gpt4oMiniDeployment]
 }
 
 // ---------------------------------------------------------------------------
@@ -110,7 +110,7 @@ resource hubConnection 'Microsoft.MachineLearningServices/workspaces/connections
       ResourceId: aiServices.id
     }
   }
-  dependsOn: [gpt41Deployment]
+  dependsOn: [gpt4oMiniDeployment]
 }
 
 // ---------------------------------------------------------------------------

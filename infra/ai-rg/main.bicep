@@ -37,7 +37,7 @@ module foundry 'foundry.bicep' = {
 module aiservices 'aiservices.bicep' = {
   name: 'aiservices-deploy'
   params: {
-    location: 'swedencentral'    // gpt-4.1 GlobalStandard quota available; switzerlandnorth has 0
+    location: 'germanywestcentral'    // allowed by subscription policy; supports gpt-4o-mini GlobalStandard
     environment: environment
     foundryHubName: foundry.outputs.foundryHubName
   }
