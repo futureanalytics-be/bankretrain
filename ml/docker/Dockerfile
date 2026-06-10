@@ -21,5 +21,6 @@ RUN pip install --no-cache-dir \
     "scikit-learn>=1.3" \
     "lightgbm>=4.0" \
     "mlflow>=2.13,<3.0.0" \
+    "azureml-mlflow" \
     "matplotlib>=3.7" \
     "seaborn>=0.13"
