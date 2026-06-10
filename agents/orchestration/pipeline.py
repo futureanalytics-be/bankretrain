@@ -1,8 +1,7 @@
 """
 agents/orchestration/pipeline.py — BankRetain sequential agent pipeline
 
-Processes every customer in high_risk_batch.csv through three OpenAI Assistants
-in sequence:
+Processes every customer in high_risk_batch.csv through three agents in sequence:
 
   Agent 1 (Churn Classifier)  → classify churn reason via AI Search profile
   Agent 2 (Offer Selection)   → select offer + draft outreach message
@@ -11,19 +10,18 @@ in sequence:
 Approved messages → approved_outreach table (Azure SQL)
 Rejected messages → compliance_review_queue table (Azure SQL)
 
+The product catalogue and compliance rules are loaded from disk and injected
+directly into the agent system prompts — no vector store required.
+
 Prerequisites:
-  - Azure AI Services account endpoint (openai/v1 format)
-  - Products and compliance vector stores uploaded (run upload_products.py / upload_compliance.py)
+  - Azure AI Services account endpoint (AZURE_AI_ENDPOINT env var)
   - AI Search index populated (run enrichment.py)
 
 Usage:
     source sql.env && python agents/orchestration/pipeline.py \
-        --base-url              https://bankretain-ai-svc-dev-jrkvoy.openai.azure.com/openai/v1 \
         --search-endpoint       https://bankretain-search-dev-jrkvoygp.search.windows.net \
         --keyvault-name         bankretain-kv-ai-jrkvoy \
         --storage-account       bankretainstdevmqi4i4pj \
-        --products-store-id     <vector-store-id> \
-        --compliance-store-id   <vector-store-id> \
         --batch-size            20
 """
 
@@ -49,9 +47,16 @@ REPO_ROOT   = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 PROMPTS_DIR = REPO_ROOT / "agents" / "prompts"
 
+_PRODUCTS_CATALOGUE  = (REPO_ROOT / "data" / "product_catalogue" / "products.md").read_text()
+_COMPLIANCE_RULES    = (REPO_ROOT / "data" / "compliance_rules"  / "rules.md").read_text()
+
 AGENT1_PROMPT = (PROMPTS_DIR / "agent1_system.md").read_text()
-AGENT2_PROMPT = (PROMPTS_DIR / "agent2_system.md").read_text()
-AGENT3_PROMPT = (PROMPTS_DIR / "agent3_system.md").read_text()
+AGENT2_PROMPT = (PROMPTS_DIR / "agent2_system.md").read_text() + (
+    "\n\n---\n## Product Catalogue\n\n" + _PRODUCTS_CATALOGUE
+)
+AGENT3_PROMPT = (PROMPTS_DIR / "agent3_system.md").read_text() + (
+    "\n\n---\n## Compliance Rules\n\n" + _COMPLIANCE_RULES
+)
 
 DEPLOYMENT_NAME = os.environ.get("AZURE_AI_DEPLOYMENT", "gpt-oss-120b")
 BATCH_CSV_NAME  = "high_risk_batch.csv"
@@ -318,8 +323,7 @@ def run_response(oai: OpenAI, instructions: str, user_input: str,
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
-def process_customer(customer_id: str, oai: OpenAI, search_client,
-                     products_store_id: str, compliance_store_id: str) -> dict:
+def process_customer(customer_id: str, oai: OpenAI, search_client) -> dict:
     from agents.tools.search_tool import handle_tool_call
 
     result = {"customer_id": customer_id,
@@ -349,11 +353,10 @@ def process_customer(customer_id: str, oai: OpenAI, search_client,
         or "medium"
     )
 
-    # Agent 2 — offer selection + draft
+    # Agent 2 — offer selection + draft (catalogue is inlined in AGENT2_PROMPT)
     a2_output, a2_tokens = run_response(
         oai, AGENT2_PROMPT,
         json.dumps(a1_output),
-        tools=[{"type": "file_search", "vector_store_ids": [products_store_id]}],
     )
     result["agent2_tokens"] = a2_tokens
     if not a2_output:
@@ -363,7 +366,7 @@ def process_customer(customer_id: str, oai: OpenAI, search_client,
     result["channel"]       = a2_output.get("channel")
     result["message_draft"] = a2_output.get("message_draft", "")
 
-    # Agent 3 — compliance review
+    # Agent 3 — compliance review (rules are inlined in AGENT3_PROMPT)
     a3_output, a3_tokens = run_response(
         oai, AGENT3_PROMPT,
         json.dumps({
@@ -372,7 +375,6 @@ def process_customer(customer_id: str, oai: OpenAI, search_client,
             "channel":          a2_output.get("channel"),
             "message_draft":    a2_output.get("message_draft"),
         }),
-        tools=[{"type": "file_search", "vector_store_ids": [compliance_store_id]}],
     )
     result["agent3_tokens"] = a3_tokens
     if not a3_output:
@@ -414,10 +416,7 @@ def main(args) -> None:
     for i, customer_id in enumerate(batch_df["customer_id"].tolist(), 1):
         print(f"[{i}/{len(batch_df)}] {customer_id} ...", end=" ", flush=True)
         try:
-            result = process_customer(
-                customer_id, oai, search_client,
-                args.products_store_id, args.compliance_store_id,
-            )
+            result = process_customer(customer_id, oai, search_client)
             if "error" in result:
                 print(f"ERROR — {result['error']}")
                 errors += 1
@@ -446,8 +445,6 @@ if __name__ == "__main__":
     parser.add_argument("--search-endpoint",     dest="search_endpoint",      required=True)
     parser.add_argument("--keyvault-name",       dest="keyvault_name",        required=True)
     parser.add_argument("--storage-account",     dest="storage_account",      required=True)
-    parser.add_argument("--products-store-id",   dest="products_store_id",    required=True)
-    parser.add_argument("--compliance-store-id", dest="compliance_store_id",  required=True)
     parser.add_argument("--sql-server",  dest="sql_server",
                         default=os.environ.get("BANKRETAIN_SQL_SERVER", ""))
     parser.add_argument("--sql-db",      dest="sql_db",

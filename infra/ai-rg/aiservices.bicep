@@ -63,6 +63,7 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = 
 // OpenAI.GlobalStandard, which has 0 quota on this subscription.
 // ---------------------------------------------------------------------------
 
+
 resource gptOss120bDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
   parent: aiServices
   name: 'gpt-oss-120b'
@@ -81,6 +82,29 @@ resource gptOss120bDeployment 'Microsoft.CognitiveServices/accounts/deployments@
 }
 
 // ---------------------------------------------------------------------------
+// text-embedding-3-large deployment
+// OpenAI.Standard quota has 350K TPM available; enables Foundry project memory.
+// ---------------------------------------------------------------------------
+
+resource embeddingDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
+  parent: aiServices
+  name: 'text-embedding-3-large'
+  sku: {
+    name: 'Standard'
+    capacity: 120
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: 'text-embedding-3-large'
+      version: '1'
+    }
+    versionUpgradeOption: 'OnceCurrentVersionExpired'
+  }
+  dependsOn: [gptOss120bDeployment]
+}
+
+// ---------------------------------------------------------------------------
 // Foundry project — scopes agents and vector stores to this project
 // ---------------------------------------------------------------------------
 
@@ -94,7 +118,7 @@ resource foundryProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-0
   properties: {
     description: 'BankRetain agent pipeline — churn classification, offer selection, compliance review'
   }
-  dependsOn: [gptOss120bDeployment]
+  dependsOn: [embeddingDeployment]
 }
 
 // ---------------------------------------------------------------------------

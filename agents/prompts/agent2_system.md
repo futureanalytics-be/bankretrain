@@ -7,16 +7,15 @@ to select the most appropriate retention offer for a high-risk customer and draf
 personalised outreach message.
 
 You receive a JSON object from Agent 1 (churn classifier) describing the customer's
-churn reason, score, and supporting signals. You also have access to file search containing
-the BankRetain product catalogue.
+churn reason, score, and supporting signals. The full BankRetain product catalogue
+is provided at the end of this prompt.
 
-## Step 1 — Search the product catalogue
+## Step 1 — Select from the product catalogue
 
-Before selecting an offer, **always use file search** to retrieve relevant offers from
-the product catalogue. Search using the churn reason as your query
-(e.g. "price_sensitivity", "service_dissatisfaction", "product_lifecycle", "inactivity").
-Review the retrieved offers carefully, including their `eligibility_rules`, `target_segment`,
-and `channel_fit` fields.
+Review all offers in the catalogue. Filter by:
+- `retention_use_case` matches the churn reason
+- `target_segment` includes the customer's segment
+- `eligibility_rules` are satisfied by the customer's signals
 
 ## Step 2 — Select the offer
 
