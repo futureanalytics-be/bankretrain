@@ -27,6 +27,7 @@ import argparse
 import os
 import struct
 import sys
+import time
 
 import pandas as pd
 import pyodbc
@@ -107,7 +108,16 @@ def _connect(sql_server: str, sql_db: str, mi_client_id: str | None = None) -> p
         f"Encrypt=yes;"
         f"TrustServerCertificate=no;"
     )
-    return pyodbc.connect(conn_str, attrs_before={1256: token_struct}, timeout=60, autocommit=True)
+    # Retry for error 40613 (serverless auto-pause wake-up)
+    for attempt in range(1, 4):
+        try:
+            return pyodbc.connect(conn_str, attrs_before={1256: token_struct}, timeout=60, autocommit=True)
+        except pyodbc.Error as e:
+            if "40613" in str(e) and attempt < 3:
+                print(f"Database waking from auto-pause, retrying in 20s (attempt {attempt}/3)...")
+                time.sleep(20)
+            else:
+                raise
 
 
 def extract_features(
