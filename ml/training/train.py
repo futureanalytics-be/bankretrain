@@ -157,6 +157,13 @@ def _plot_feature_importance(model) -> plt.Figure:
 
 def train(features_path: str, model_output: str) -> None:
     os.makedirs(model_output, exist_ok=True)
+
+    # AML sets MLFLOW_TRACKING_URI to azureml:// which requires the azureml-mlflow
+    # plugin. Fall back to local file tracking so the pipeline step doesn't crash;
+    # metrics.json is the evaluate step's authoritative source of truth anyway.
+    if os.environ.get("MLFLOW_TRACKING_URI", "").startswith("azureml://"):
+        mlflow.set_tracking_uri("file:./mlruns")
+
     mlflow.start_run()
 
     df = load_features(features_path)
