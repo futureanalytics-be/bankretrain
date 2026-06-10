@@ -15,3 +15,6 @@ sql.env
 
 # Playwright screenshot artifacts
 .playwright-mcp/
+
+# Streamlit secrets (Community Cloud — set via UI, never commit)
+.streamlit/secrets.toml

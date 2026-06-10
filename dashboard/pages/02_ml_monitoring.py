@@ -14,6 +14,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import config  # noqa: F401 — bootstraps os.environ from st.secrets on Community Cloud
 import streamlit as st
 import plotly.express as px
 import pandas as pd

@@ -12,6 +12,7 @@ import time
 import streamlit as st
 import pyodbc
 from azure.identity import DefaultAzureCredential
+import config  # noqa: F401 — bootstraps os.environ from st.secrets on Community Cloud
 
 
 @st.cache_resource(show_spinner=False)
