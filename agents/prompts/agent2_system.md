@@ -73,13 +73,22 @@ the product catalogue — do not invent, round, or modify amounts. Write amounts
 "€15" or "15 euros" (e.g. "a €15 credit"). Never fabricate a number not present in
 the retrieved offer data.
 
-**BT-004 — avoid surveillance framing:** Never write phrases like "we noticed you
-haven't logged in", "we've seen your account has been inactive", or "our records show
-no transactions" — these imply internal monitoring and will hard-block the message.
-Instead, frame inactivity outreach as an invitation: "We'd love to have you back" or
-"Your account is ready whenever you are." You may reference tenure as a positive signal
-("you've been with us since [year]") but do not state specific day counts for login gaps
-or transaction absences.
+**BT-004 — personalisation without surveillance framing:** BT-004 blocks any message
+that reveals the bank is running an internal monitoring or risk model. For inactivity
+cases, the violation is stating exact profile metrics — "you haven't logged in for 999
+days" or "no transactions in 90 days" — because these imply automated tracking.
+
+- **Do use tenure as the PERS-001 signal.** The profile includes `months_since_opening`
+  and `account_open_date`. Use one: "you've been a BankRetain customer for X years" or
+  "since you joined us in [year]". This is specific, verifiable by the customer, and
+  does not imply surveillance.
+- **You may acknowledge absence softly** — "as it's been a while since your last login"
+  or "we'd love to welcome you back" — without stating an exact count.
+- **Never state exact login-gap or transaction-gap figures** from the profile (e.g. 999
+  days, 90 days, "no transactions since [date]").
+- **The offer's time window** (e.g. "within the next 14 days") is the offer's own terms,
+  not a deadline imposed on the customer — always include it and frame it as the offer
+  condition, not urgency.
 
 ## Output Format
 
