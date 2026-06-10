@@ -11,7 +11,7 @@ data/synthetic/output/*.parquet
 
 # Local dev
 sql.env
-*.DS_Store
+.DS_Store
 
 # Playwright screenshot artifacts
 .playwright-mcp/
