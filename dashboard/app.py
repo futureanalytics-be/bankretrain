@@ -10,7 +10,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 import streamlit as st
-from db import query
+from blob_store import get_approved_outreach, get_review_queue
 
 st.set_page_config(
     page_title="BankRetain",
@@ -33,38 +33,24 @@ st.divider()
 # ── Live pipeline metrics ─────────────────────────────────────────────────────
 
 try:
-    df = query("""
-        SELECT
-            SUM(total)      AS total_processed,
-            SUM(approved)   AS total_approved,
-            SUM(queued)     AS total_queued,
-            CAST(SUM(approved) AS FLOAT) / NULLIF(SUM(total), 0) AS pass_rate,
-            SUM(tokens)     AS total_tokens
-        FROM (
-            SELECT COUNT(*) AS total, COUNT(*) AS approved, 0 AS queued,
-                   SUM(agent1_tokens + agent2_tokens + agent3_tokens) AS tokens
-            FROM dbo.approved_outreach
-            UNION ALL
-            SELECT COUNT(*), 0, COUNT(*), 0
-            FROM dbo.compliance_review_queue
-        ) x
-    """)
-    row = df.iloc[0]
-    total     = int(row["total_processed"] or 0)
-    approved  = int(row["total_approved"]  or 0)
-    queued    = int(row["total_queued"]    or 0)
-    pass_rate = float(row["pass_rate"]     or 0)
-    tokens    = int(row["total_tokens"]    or 0)
-    has_data  = total > 0
+    approved_df = get_approved_outreach()
+    queue_df    = get_review_queue()
+
+    total_approved = len(approved_df)
+    total_queued   = len(queue_df)
+    total          = total_approved + total_queued
+    pass_rate      = total_approved / total if total else 0.0
+    tokens         = int(approved_df["total_tokens"].sum()) if "total_tokens" in approved_df.columns else 0
+    has_data       = total > 0
 except Exception:
     has_data = False
 
 if has_data:
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Customers processed", f"{total:,}")
+    c1.metric("Customers processed",  f"{total:,}")
     c2.metric("Compliance pass rate", f"{pass_rate*100:.1f}%")
-    c3.metric("Messages approved", f"{approved:,}")
-    c4.metric("Queued for review", f"{queued:,}")
+    c3.metric("Messages approved",    f"{total_approved:,}")
+    c4.metric("Queued for review",    f"{total_queued:,}")
     st.divider()
 
 # ── Architecture ──────────────────────────────────────────────────────────────
@@ -91,17 +77,24 @@ Azure ML Pipeline ──► Feature Store ──► GBM Churn Model
                               ▼                ▼                ▼
                           Agent 1          Agent 2          Agent 3
                        Churn Classifier  Offer Selector  Compliance Review
-                       (gpt-4.1)         (gpt-4.1 +      (gpt-4.1 +
-                                          file search)     file search)
+                       (gpt-oss-120b)    (gpt-oss-120b   (gpt-oss-120b +
+                                          + inline        inline rules)
+                                          catalogue)
                               └────────────────┼────────────────┘
                                                │
                               ┌────────────────┴────────────────┐
                               ▼                                  ▼
                      approved_outreach              compliance_review_queue
                        (Azure SQL)                     (Azure SQL)
-                              │
-                              ▼
-                     Streamlit Dashboard
+                              │                                  │
+                              └──────────────┬───────────────────┘
+                                             ▼
+                                  Azure Blob Storage
+                                  (dashboard-cache/
+                                   *.parquet — 5 min TTL)
+                                             │
+                                             ▼
+                                  Streamlit Dashboard
 ```
 """)
 
@@ -109,7 +102,7 @@ with right:
     st.markdown("**Data & Storage**")
     st.markdown(
         "- Azure SQL (Entra-only auth, Managed Identity)\n"
-        "- Azure Blob Storage (batch CSV, feature snapshots)\n"
+        "- Azure Blob Storage (batch CSV, Parquet dashboard cache)\n"
         "- Azure AI Search (customer profile index)\n"
         "- Azure ML Feature Store\n"
     )
@@ -123,8 +116,8 @@ with right:
     st.markdown("**Agent Orchestration**")
     st.markdown(
         "- Azure AI Foundry (Responses API)\n"
-        "- GPT-4.1 — 3-agent sequential pipeline\n"
-        "- Vector store file search (products + compliance)\n"
+        "- gpt-oss-120b — 3-agent sequential pipeline\n"
+        "- Inline product catalogue + compliance rules\n"
         "- Automated compliance hard-block enforcement\n"
     )
     st.markdown("**AIOps & Infrastructure**")
@@ -144,9 +137,9 @@ st.subheader("Project phases")
 phases = [
     ("1 — Data Foundation",        "✅ Complete", "Synthetic population A (50k) seeded into Azure SQL; Azure ML feature store configured; batch scoring pipeline producing `high_risk_batch.csv`"),
     ("2 — ML Model & Monitoring",  "✅ Complete", "GBM churn model v1 trained (precision ≥ 0.75 gate); registered in AML model registry; MLflow experiment tracking; canary deployment structure in place"),
-    ("3 — Knowledge Stores",       "✅ Complete", "AI Search index populated (61 high-risk profiles); product catalogue and compliance rules uploaded to Foundry vector stores"),
-    ("4 — Agent Pipeline",         "✅ Complete", "3-agent pipeline (classify → offer → comply); Azure AI Responses API; 88 % compliance pass rate; results written to Azure SQL"),
-    ("5 — Analytics Dashboard",    "✅ Complete", "Streamlit dashboard — 5 pages; compliance pass rate correlations; rule violation heatmap; token cost; canary split view"),
+    ("3 — Knowledge Stores",       "✅ Complete", "AI Search index populated (61 high-risk profiles); product catalogue and compliance rules loaded inline into agent prompts"),
+    ("4 — Agent Pipeline",         "✅ Complete", "3-agent pipeline (classify → offer → comply); gpt-oss-120b via Azure AI Foundry; pipeline caches results to Azure Blob as Parquet"),
+    ("5 — Analytics Dashboard",    "✅ Complete", "Streamlit dashboard — 5 pages; reads from Blob Storage Parquet cache (no ODBC driver needed); compliance pass rate correlations; rule violation heatmap"),
 ]
 
 for name, status, description in phases:

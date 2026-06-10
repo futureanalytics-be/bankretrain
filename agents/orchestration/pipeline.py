@@ -439,6 +439,78 @@ def main(args) -> None:
     print(f"Batch complete: {approved} approved, {rejected} queued for review, {errors} errors")
     print(f"Batch date: {batch_date}")
 
+    _cache_to_blob(args.storage_account, cred)
+
+
+def _cache_to_blob(storage_account: str, cred) -> None:
+    """Write pipeline result tables + customer data to blob as Parquet."""
+    from azure.storage.blob import BlobServiceClient
+
+    print("Updating dashboard blob cache…")
+    blob_svc  = BlobServiceClient(f"https://{storage_account}.blob.core.windows.net", cred)
+    container = blob_svc.get_container_client("dashboard-cache")
+    try:
+        container.create_container()
+    except Exception:
+        pass  # already exists
+
+    # Re-open a fresh connection for the export read
+    cred2 = _credential()
+    conn  = _sql_connect(
+        os.environ.get("BANKRETAIN_SQL_SERVER", ""),
+        os.environ.get("BANKRETAIN_SQL_DB", "bankretaindb"),
+        cred2,
+    )
+    try:
+        for table, sql in [
+            ("approved_outreach",
+             "SELECT customer_id, batch_date, offer_id, channel, churn_reason, confidence,"
+             "       message_draft, agent1_tokens, agent2_tokens, agent3_tokens, approved_at"
+             " FROM dbo.approved_outreach"),
+            ("compliance_review_queue",
+             "SELECT id, customer_id, batch_date, offer_id, channel, churn_reason,"
+             "       message_draft, violated_rules, review_notes, status,"
+             "       reviewed_by, reviewed_at, created_at"
+             " FROM dbo.compliance_review_queue"),
+            ("customers",
+             "SELECT customer_id, snapshot_date, age, region, segment,"
+             "       customer_since_date, preferred_language, salary_account_flag,"
+             "       churned, churn_signal_count"
+             " FROM dbo.customers"),
+            ("product_holdings",
+             "SELECT p.product_type, COUNT(*) AS holdings"
+             " FROM dbo.customer_products cp"
+             " JOIN dbo.products p ON cp.product_id = p.product_id"
+             " WHERE cp.status = 'active'"
+             " GROUP BY p.product_type"),
+            ("customer_features",
+             "SELECT c.customer_id, c.churned,"
+             "       DATEDIFF(day, MAX(s.session_date), CAST('2025-04-01' AS DATE))"
+             "           AS days_since_last_login,"
+             "       SUM(CASE WHEN t.is_competitor_transfer = 1"
+             "                 AND t.transaction_date >= DATEADD(day, -90, '2025-04-01')"
+             "                THEN 1 ELSE 0 END) AS competitor_transfer_count,"
+             "       COUNT(DISTINCT CASE WHEN comp.status = 'open'"
+             "                          THEN comp.complaint_id END) AS complaints_open"
+             " FROM dbo.customers c"
+             " LEFT JOIN dbo.app_sessions s  ON c.customer_id = s.customer_id"
+             " LEFT JOIN dbo.transactions t  ON c.customer_id = t.customer_id"
+             " LEFT JOIN dbo.complaints comp ON c.customer_id = comp.customer_id"
+             " GROUP BY c.customer_id, c.churned"),
+        ]:
+            cur = conn.cursor()
+            cur.execute(sql)
+            cols = [c[0] for c in cur.description]
+            df   = pd.DataFrame.from_records(cur.fetchall(), columns=cols)
+            cur.close()
+
+            buf = io.BytesIO()
+            df.to_parquet(buf, index=False)
+            container.upload_blob(f"{table}.parquet", buf.getvalue(), overwrite=True)
+            print(f"  cached {table}.parquet ({len(df)} rows)")
+    finally:
+        conn.close()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
