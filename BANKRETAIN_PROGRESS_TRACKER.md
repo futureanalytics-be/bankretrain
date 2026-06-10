@@ -168,7 +168,7 @@ Update this file as you complete each task. Replace `[ ]` with `[x]` when done.
 - [x] `ml/registry/promote.py` — model promotion script written
   - [x] Updates model registry tag: staging → production
   - [x] Updates canary split to v2 100% / v1 0%
-- [ ] Promotion tested manually: v2 promoted to production in model registry
+- [x] Promotion tested manually: v2 promoted to production in model registry
 
 ### 2.6 Dashboard Extension (Phase 2 scope)
 
