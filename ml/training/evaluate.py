@@ -29,10 +29,10 @@ SNAPSHOT_DATE    = "2025-04-01"
 
 
 def _get_client(subscription_id: str, resource_group: str, workspace_name: str) -> MLClient:
-    try:
-        cred = ManagedIdentityCredential()
-        cred.get_token("https://management.azure.com/.default")
-    except Exception:
+    mi_client_id = os.environ.get("AZURE_CLIENT_ID")
+    if mi_client_id:
+        cred = ManagedIdentityCredential(client_id=mi_client_id)
+    else:
         cred = DefaultAzureCredential()
     return MLClient(cred, subscription_id, resource_group, workspace_name)
 

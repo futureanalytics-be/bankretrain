@@ -105,6 +105,7 @@ def build_pipeline(args, env: Environment):
             "--dataset-version ${{inputs.dataset_version}}"
         ),
         environment=env,
+        environment_variables={"AZURE_CLIENT_ID": args.mi_client_id},
         inputs={
             "model_path":      Input(type="uri_folder"),
             "dataset_version": Input(type="string"),
