@@ -50,7 +50,6 @@ def build_environment() -> Environment:
 def build_job(args, env: Environment):
     # snapshot_date defaults to today() inside batch_score.py when omitted
     return command(
-        name="batch_score",
         display_name="BankRetain Weekly Batch Scoring",
         description="Score all customers, write high-risk subset to Blob Storage",
         code=SCORING_DIR,
