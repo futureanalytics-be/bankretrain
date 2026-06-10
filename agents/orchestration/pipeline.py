@@ -185,6 +185,33 @@ def write_rejected(conn: pyodbc.Connection, batch_date: str, row: dict) -> None:
 
 # ── Text helpers ─────────────────────────────────────────────────────────────
 
+_VALID_CHURN_REASONS = frozenset({
+    "price_sensitivity", "service_dissatisfaction",
+    "product_lifecycle", "inactivity", "unknown",
+})
+
+# Keyword fallback order matters — more specific reasons first.
+_CHURN_REASON_KEYWORDS = [
+    ("service_dissatisfaction", ["complaint", "incident", "nps"]),
+    ("product_lifecycle",       ["lifecycle", "rate_reset", "rate reset", "mortgage"]),
+    ("price_sensitivity",       ["price", "competitor", "fee", "salary"]),
+    ("inactivity",              ["inactiv", "dormant", "dormancy", "disengag", "engagement"]),
+]
+
+
+def _normalize_churn_reason(raw: Optional[str]) -> str:
+    if not raw:
+        return "unknown"
+    clean = raw.strip()
+    if clean.lower() in _VALID_CHURN_REASONS:
+        return clean.lower()
+    lower = clean.lower()
+    for reason, keywords in _CHURN_REASON_KEYWORDS:
+        if any(kw in lower for kw in keywords):
+            return reason
+    return "unknown"
+
+
 _UNICODE_MAP = str.maketrans({
     "\u2018": "'", "\u2019": "'",
     "\u201c": '"', "\u201d": '"',
@@ -310,7 +337,7 @@ def process_customer(customer_id: str, oai: OpenAI, search_client,
     if not a1_output or "error" in a1_output:
         result["error"] = f"agent1 failed: {a1_output}"
         return result
-    result["churn_reason"] = a1_output.get("churn_reason")
+    result["churn_reason"] = _normalize_churn_reason(a1_output.get("churn_reason"))
     result["confidence"]   = (
         a1_output.get("confidence")
         or a1_output.get("confidence_level")
