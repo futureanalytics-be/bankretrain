@@ -51,25 +51,30 @@ def _install_ms_odbc():
     if glob.glob("/opt/microsoft/msodbcsql18/lib64/libmsodbcsql-18.*.so.*.*"):
         return  # Already installed
 
+    # Detect Ubuntu version at runtime — Community Cloud has moved between
+    # 22.04 (jammy) and 24.04 (noble); hardcoding a version breaks on upgrades.
     _SCRIPT = """
 set -e
-curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-    | gpg --dearmor \
-    | sudo tee /usr/share/keyrings/microsoft-prod.gpg > /dev/null
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] \
-https://packages.microsoft.com/ubuntu/22.04/prod jammy main" \
-    | sudo tee /etc/apt/sources.list.d/mssql-release.list > /dev/null
+UBUNTU_VER=$(lsb_release -rs)
+UBUNTU_CODENAME=$(lsb_release -cs)
+curl -fsSL "https://packages.microsoft.com/config/ubuntu/${UBUNTU_VER}/packages-microsoft-prod.deb" \
+    -o /tmp/packages-microsoft-prod.deb
+sudo dpkg -i /tmp/packages-microsoft-prod.deb
 sudo apt-get update -qq
 sudo ACCEPT_EULA=Y DEBIAN_FRONTEND=noninteractive apt-get install -yq msodbcsql18
 """
-    try:
-        subprocess.run(
-            ["bash", "-c", _SCRIPT],
-            check=True, timeout=180,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    result = subprocess.run(
+        ["bash", "-c", _SCRIPT],
+        timeout=180,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        # Surface the failure so it shows in Streamlit logs
+        raise RuntimeError(
+            f"ODBC driver install failed (exit {result.returncode}):\n"
+            f"{result.stderr[-2000:]}"
         )
-    except Exception:
-        pass  # Connection attempt will surface the error with a clear message
 
 
 # Called lazily from db.py on first connection attempt — not at import time,
