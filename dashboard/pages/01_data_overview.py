@@ -54,7 +54,7 @@ with col_left:
         color_discrete_sequence=px.colors.qualitative.Set2,
     )
     fig.update_layout(showlegend=False, xaxis_title=None)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with col_right:
     region_df = query("""
@@ -68,7 +68,7 @@ with col_right:
         title="Customers by Region",
         color_discrete_sequence=px.colors.qualitative.Set2,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -96,7 +96,7 @@ fig = px.bar(
 )
 fig.update_layout(coloraxis_showscale=False, xaxis_title=None, yaxis_title="Churn Rate %")
 fig.update_traces(textposition="outside")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -120,7 +120,7 @@ fig = px.bar(
     color_discrete_sequence=px.colors.qualitative.Pastel,
 )
 fig.update_layout(showlegend=False, xaxis_title=None)
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -157,7 +157,7 @@ with col1:
         opacity=0.7,
     )
     fig.update_layout(xaxis_title="Days", yaxis_title="Customers")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with col2:
     fig = px.histogram(
@@ -171,7 +171,7 @@ with col2:
         opacity=0.7,
     )
     fig.update_layout(xaxis_title="Transfer Count", yaxis_title="Customers")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with col3:
     fig = px.histogram(
@@ -184,4 +184,4 @@ with col3:
         opacity=0.7,
     )
     fig.update_layout(xaxis_title="Open Complaints", yaxis_title="Customers")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")

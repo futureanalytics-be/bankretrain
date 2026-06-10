@@ -118,7 +118,7 @@ if "violated_rules" in queue_df.columns:
         )
         fig.update_layout(height=300, margin=dict(t=40, b=0),
                           coloraxis_showscale=False, yaxis={"autorange": "reversed"})
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 # ── Queue table ───────────────────────────────────────────────────────────────
 
@@ -128,7 +128,7 @@ display_cols = ["id", "customer_id", "batch_date", "channel", "churn_reason",
                 "violated_rules", "status", "reviewed_by", "created_at"]
 display_cols = [c for c in display_cols if c in queue_df.columns]
 
-st.dataframe(queue_df[display_cols], use_container_width=True, height=350)
+st.dataframe(queue_df[display_cols], width="stretch", height=350)
 
 # ── Per-message review panel ──────────────────────────────────────────────────
 
