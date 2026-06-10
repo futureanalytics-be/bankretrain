@@ -117,7 +117,7 @@ Update this file as you complete each task. Replace `[ ]` with `[x]` when done.
   - [x] Runs on serverless compute (Standard_DS3_v2)
   - [ ] Scheduled weekly (Sunday night)
   - [x] Uses feature pipeline compute MI for SQL access
-  - [ ] Feature pipeline run tested manually at least once
+  - [x] Feature pipeline run tested manually at least once
 
 ### 2.2 Model Training — v1 (Population A)
 
@@ -131,7 +131,7 @@ Update this file as you complete each task. Replace `[ ]` with `[x]` when done.
 - [x] `ml/training/pipeline.py` — Azure ML training pipeline definition
   - [x] Runs on serverless compute (Standard_DS3_v2)
   - [x] Outputs registered model to model registry with `status = staging`
-- [ ] Model v1 registered in Azure ML model registry
+- [x] Model v1 registered in Azure ML model registry
 
 ### 2.3 Model Evaluation and Deployment
 

@@ -166,16 +166,15 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_production_model(subscription_id, resource_group, workspace_name, cred):
+    import tempfile
     from azure.ai.ml import MLClient
 
     client = MLClient(cred, subscription_id, resource_group, workspace_name)
 
-    # Get the latest version tagged status=production
     versions = list(client.models.list(name=MODEL_NAME))
     prod_versions = [v for v in versions if v.tags.get("status") == "production"]
 
     if not prod_versions:
-        # Fall back to latest staging if no production model yet
         staging_versions = [v for v in versions if v.tags.get("status") == "staging"]
         if not staging_versions:
             raise RuntimeError(f"No registered model found for {MODEL_NAME}")
@@ -185,9 +184,12 @@ def load_production_model(subscription_id, resource_group, workspace_name, cred)
         latest = sorted(prod_versions, key=lambda v: int(v.version))[-1]
         print(f"Production model: {MODEL_NAME} version={latest.version}")
 
-    mlflow_uri = client.workspaces.get(workspace_name).mlflow_tracking_uri
-    mlflow.set_tracking_uri(mlflow_uri)
-    model = mlflow.lightgbm.load_model(f"models:/{MODEL_NAME}/{latest.version}")
+    # Download artifacts to temp dir; avoids azureml:// MLflow URI (needs azureml-mlflow)
+    download_path = os.path.join(tempfile.gettempdir(), f"bankretain-model-v{latest.version}")
+    model_dir = os.path.join(download_path, MODEL_NAME)
+    if not os.path.exists(model_dir):
+        client.models.download(name=MODEL_NAME, version=latest.version, download_path=download_path)
+    model = mlflow.lightgbm.load_model(model_dir)
     return model, latest.version
 
 
