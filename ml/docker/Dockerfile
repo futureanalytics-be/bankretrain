@@ -22,5 +22,6 @@ RUN pip install --no-cache-dir \
     "lightgbm>=4.0" \
     "mlflow>=2.13,<3.0.0" \
     "azureml-mlflow" \
+    "azure-search-documents>=11.4" \
     "matplotlib>=3.7" \
     "seaborn>=0.13"

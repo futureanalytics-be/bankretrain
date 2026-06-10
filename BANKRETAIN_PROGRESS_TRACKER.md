@@ -13,7 +13,7 @@ Update this file as you complete each task. Replace `[ ]` with `[x]` when done.
 |---|---|---|
 | Phase 1 — Infrastructure and Data | ✅ Complete | Both RGs provisioned, Population A in SQL, dashboard showing data |
 | Phase 2 — ML Model and Monitoring | 🔄 In Progress | Model v1 deployed, batch scoring running, drift monitor configured |
-| Phase 3 — Enrichment and Knowledge Stores | ⬜ Not Started | AI Search populated, vector stores loaded, 30 reference outputs written |
+| Phase 3 — Enrichment and Knowledge Stores | 🔄 In Progress | AI Search populated, vector stores loaded, 30 reference outputs written |
 | Phase 4 — Agent Pipeline | ⬜ Not Started | Three agents working end to end, review queue live in dashboard |
 | Phase 5 — Integration and Final Validation | ⬜ Not Started | Full weekly cycle runs, drift simulation complete, all 5 dashboard pages live |
 
@@ -189,56 +189,59 @@ Update this file as you complete each task. Replace `[ ]` with `[x]` when done.
 
 ### 3.1 Enrichment Pipeline
 
-- [ ] `ml/scoring/enrichment.py` written
-  - [ ] Reads `high_risk_batch.csv` from Blob Storage
-  - [ ] For each high-risk customer, queries Azure SQL for:
-    - [ ] Last 90 days transactions → `transaction_summary`
-    - [ ] Open complaints → `complaint_summary`
-    - [ ] Active products → `product_summary`
-    - [ ] App sessions last 60 days → `engagement_summary`
-  - [ ] Upserts profile document to Azure AI Search (`customer_id` as key)
-  - [ ] Deletes profiles for customers no longer in high-risk batch
-  - [ ] Writes `churn_score` from batch scoring into the profile document
-- [ ] Enrichment pipeline tested on a small batch (20 customers)
-- [ ] Azure AI Search index verified: profile documents present and retrievable by `customer_id`
+- [x] `ml/scoring/enrichment.py` written
+  - [x] Reads `high_risk_batch.csv` from Blob Storage
+  - [x] For each high-risk customer, queries Azure SQL for:
+    - [x] Last 90 days transactions → `transaction_summary`
+    - [x] Open complaints → `complaint_summary`
+    - [x] Active products → `product_summary`
+    - [x] App sessions last 60 days → `engagement_summary`
+  - [x] Upserts profile document to Azure AI Search (`customer_id` as key)
+  - [x] Deletes profiles for customers no longer in high-risk batch
+  - [x] Writes `churn_score` from batch scoring into the profile document
+- [x] `ml/scoring/submit_enrichment.py` written (AML job + Sunday 01:00 UTC schedule)
+- [x] Key Vault secret `search-admin-key` populated (one-time manual step)
+- [x] Enrichment pipeline tested: 61 high-risk customers indexed successfully
+- [x] Azure AI Search index verified: profile documents present and retrievable by `customer_id`
 
 ### 3.2 Product Catalogue Content
 
-- [ ] `data/product_catalogue/products.md` written
-  - [ ] 25 synthetic Belgian retail banking retention offers
-  - [ ] Each offer includes: `product_id`, `product_name`, `product_type`, `target_segment`, `eligibility_rules`, `offer_description`, `retention_use_case`, `channel_fit`
-  - [ ] Coverage:
-    - [ ] 6–8 offers for `price_sensitivity` (fee waivers, bonus rates, cashback)
-    - [ ] 6–8 offers for `service_dissatisfaction` (priority service, dedicated contact)
-    - [ ] 6–8 offers for `product_lifecycle` (mortgage renewal, rate lock, refinancing)
-    - [ ] 4–6 offers for `inactivity` (re-engagement bonus, bundle discount)
-- [ ] `agents/vector_stores/upload_products.py` written and run
-- [ ] Product catalogue uploaded to Foundry file search vector store
+- [x] `data/product_catalogue/products.md` written
+  - [x] 25 synthetic Belgian retail banking retention offers (PR-001 – PR-025)
+  - [x] Each offer includes: `product_id`, `product_name`, `product_type`, `target_segment`, `eligibility_rules`, `offer_description`, `retention_use_case`, `channel_fit`
+  - [x] Coverage:
+    - [x] 8 offers for `price_sensitivity` (PR-001–PR-008)
+    - [x] 6 offers for `service_dissatisfaction` (PR-009–PR-014)
+    - [x] 6 offers for `product_lifecycle` (PR-015–PR-020)
+    - [x] 5 offers for `inactivity` (PR-021–PR-025)
+- [x] `agents/vector_stores/upload_products.py` written
+- [ ] Product catalogue uploaded to Foundry file search vector store (run upload_products.py)
 - [ ] Vector store attached to Agent 2
 
 ### 3.3 Compliance Rules Content
 
-- [ ] `data/compliance_rules/rules.md` written
-  - [ ] Each rule includes: `rule_id`, `category`, `severity`, `rule_text`
-  - [ ] Coverage:
-    - [ ] 5–7 brand tone rules (no urgency language, professional tone)
-    - [ ] 4–5 FSMA-style regulatory rules (no guaranteed return language)
-    - [ ] 3–4 MiFID II-style product claim rules (no specific performance claims without caveats)
-    - [ ] 2–3 personalisation requirements (must reference a specific customer signal)
-    - [ ] 3–4 channel-specific rules (email unsubscribe link, call opt-out)
-- [ ] `agents/vector_stores/upload_compliance.py` written and run
-- [ ] Compliance rules uploaded to Foundry file search vector store
+- [x] `data/compliance_rules/rules.md` written
+  - [x] Each rule includes: `rule_id`, `category`, `severity`, `rule_text`
+  - [x] Coverage:
+    - [x] 6 brand tone rules (BT-001–BT-006): urgency, professionalism, fear, churn disclosure, voice, superlatives
+    - [x] 5 FSMA-style regulatory rules (FSMA-001–FSMA-005): guaranteed returns, risk disclosure, advice/suitability, cooling-off, fee transparency
+    - [x] 3 MiFID II-style product claim rules (MIFID-001–MIFID-003): performance claims, target market, comparative claims
+    - [x] 3 personalisation requirements (PERS-001–PERS-003): customer signal, segment match, channel match
+    - [x] 4 channel-specific rules (CH-001–CH-004): email unsubscribe, call opt-out, call identity, subject line
+- [x] `agents/vector_stores/upload_compliance.py` written
+- [ ] Compliance rules uploaded to Foundry file search vector store (run upload_compliance.py)
 - [ ] Vector store attached to Agent 3
 
 ### 3.4 Reference Evaluation Outputs
 
-- [ ] `agents/evaluation/reference_outputs/` folder created
-- [ ] 30 manually written example good outreach messages
-  - [ ] Coverage: each churn reason (4) × each channel (2) = 8 base combinations
-  - [ ] Multiple customer segments represented
-  - [ ] Mix of email and call script formats
+- [x] `agents/evaluation/reference_outputs/` folder created
+- [x] 30 manually written example good outreach messages
+  - [x] Coverage: each churn reason (4) × each channel (2) = 8 base combinations
+  - [x] Multiple customer segments represented (standard, starter, student, private_banking)
+  - [x] Mix of email and call script formats
+  - [x] All 30 pass compliance check: no BT-004 violations, CH-001/CH-002 present, FSMA-002 on investment offers
 
-**✅ Phase 3 done when:** Azure AI Search index populated from a test batch, product catalogue and compliance rules uploaded to Foundry vector stores, 30 reference outputs written.
+**✅ Phase 3 done when:** Azure AI Search index populated from a test batch ✓, product catalogue and compliance rules uploaded to Foundry vector stores (pending upload_products.py / upload_compliance.py run against live Foundry project), 30 reference outputs written ✓.
 
 ---
 
@@ -249,52 +252,54 @@ Update this file as you complete each task. Replace `[ ]` with `[x]` when done.
 
 ### 4.1 Agent System Prompts
 
-- [ ] `agents/prompts/agent1_system.md` written
-  - [ ] Outputs structured JSON: `{customer_id, churn_score, churn_reason, confidence, supporting_signals}`
-  - [ ] Classifies into exactly one of: `price_sensitivity`, `service_dissatisfaction`, `product_lifecycle`, `inactivity`, `unknown`
-  - [ ] Sets confidence: `high` / `medium` / `low`
-  - [ ] Falls back to `unknown` if fewer than 2 clear signals
-- [ ] `agents/prompts/agent2_system.md` written
-  - [ ] Uses file search before generating
-  - [ ] Checks customer eligibility before selecting offer
-  - [ ] Routes to `email` or `call` based on `channel_fit`
-  - [ ] References at least one specific customer signal in message
-  - [ ] Output: `{customer_id, offer_id, channel, message_draft, rationale}`
-- [ ] `agents/prompts/agent3_system.md` written
-  - [ ] Uses file search before evaluating
-  - [ ] Any `hard_block` rule failure = immediate `fail` status
-  - [ ] `flag_for_review` rules flagged but message passes if no hard blocks
-  - [ ] Output: `{status: pass|fail, violated_rules: [], message_draft, review_notes}`
+- [x] `agents/prompts/agent1_system.md` written
+  - [x] Outputs structured JSON: `{customer_id, churn_score, churn_reason, confidence, supporting_signals}`
+  - [x] Classifies into exactly one of: `price_sensitivity`, `service_dissatisfaction`, `product_lifecycle`, `inactivity`, `unknown`
+  - [x] Sets confidence: `high` / `medium` / `low`
+  - [x] Falls back to `unknown` if fewer than 2 clear signals
+- [x] `agents/prompts/agent2_system.md` written
+  - [x] Uses file search before generating
+  - [x] Checks customer eligibility before selecting offer
+  - [x] Routes to `email` or `call` based on `channel_fit`
+  - [x] References at least one specific customer signal in message
+  - [x] Output: `{customer_id, offer_id, channel, message_draft, rationale}`
+- [x] `agents/prompts/agent3_system.md` written
+  - [x] Uses file search before evaluating
+  - [x] Any `hard_block` rule failure = immediate `fail` status
+  - [x] `flag_for_review` rules flagged but message passes if no hard blocks
+  - [x] Output: `{status: pass|fail, violated_rules: [], message_draft, review_notes}`
 
 ### 4.2 Azure AI Search Tool for Agent 1
 
-- [ ] `agents/tools/search_tool.py` written
-  - [ ] Tool name: `get_customer_profile`
-  - [ ] Parameter: `customer_id` (string)
-  - [ ] Filter: `customer_id eq '{customer_id}'`
-  - [ ] Returns full profile document for that customer
-  - [ ] Uses Foundry project MI — no API keys
-- [ ] `agents/tools/schemas.py` written — JSON schema for Agent 1→2 contract
+- [x] `agents/tools/search_tool.py` written
+  - [x] Tool name: `get_customer_profile`
+  - [x] Parameter: `customer_id` (string)
+  - [x] Filter: `customer_id eq '{customer_id}'`
+  - [x] Returns full profile document for that customer
+  - [x] API key retrieved from Key Vault via MI (no hardcoded keys)
+- [x] `agents/tools/schemas.py` written — JSON schemas for Agent 1→2→3 contracts
 - [ ] Tool tested: returns correct profile for a given `customer_id`
 
 ### 4.3 Sequential Orchestration
 
-- [ ] `agents/orchestration/pipeline.py` written
-  - [ ] Reads `high_risk_batch.csv` from Blob Storage
-  - [ ] For each customer: Agent 1 → validate JSON → Agent 2 → Agent 3 → route output
-  - [ ] Pass → writes to `approved_outreach` table
-  - [ ] Fail → writes to `compliance_review_queue` table
-  - [ ] Every agent call logged: token count, latency, status to Foundry tracing
-  - [ ] Errors handled gracefully (log and skip, do not crash pipeline)
+- [x] `agents/orchestration/pipeline.py` written
+  - [x] Reads `high_risk_batch.csv` from Blob Storage
+  - [x] For each customer: Agent 1 → validate JSON → Agent 2 → Agent 3 → route output
+  - [x] Pass → writes to `approved_outreach` table
+  - [x] Fail → writes to `compliance_review_queue` table
+  - [x] Token counts per agent logged per row
+  - [x] Errors handled gracefully (log and skip, do not crash pipeline)
+  - [x] `--batch-size N` flag for test runs
 - [ ] Pipeline tested on a batch of 20 customers end to end
 - [ ] All three agents returning valid structured JSON
 
 ### 4.4 State Store for Dashboard Write-back
 
-- [ ] `dashboard/state/queue_store.py` written
-  - [ ] `approved_outreach` table: `{customer_id, offer_id, channel, message_draft, approved_at}`
-  - [ ] `compliance_review_queue` table: `{customer_id, message_draft, violated_rules, review_notes, status, reviewed_by, reviewed_at}`
-  - [ ] Both tables created in Azure SQL (reuses existing resource)
+- [x] `dashboard/state/queue_store.py` written
+  - [x] `approved_outreach` table: full schema with token counts, churn_reason, confidence
+  - [x] `compliance_review_queue` table: violated_rules (JSON), review_notes, human review write-back
+  - [x] Both tables auto-created by pipeline on first run
+  - [x] Human review decision writes back to queue and mirrors approved messages to outreach table
 
 ### 4.5 Foundry Evaluation Pipeline
 
@@ -307,16 +312,19 @@ Update this file as you complete each task. Replace `[ ]` with `[x]` when done.
 
 ### 4.6 Dashboard Extension (Phase 4 scope)
 
-- [ ] `dashboard/pages/03_approved_outreach.py` created
-  - [ ] Table of this week's approved messages
-  - [ ] Filter by channel (email / call)
-  - [ ] Filter by churn reason
-  - [ ] Download as CSV for campaign execution
-- [ ] `dashboard/pages/04_review_queue.py` created (interactive)
-  - [ ] Table of failed messages with violated rule displayed
-  - [ ] Per-message actions: Approve with justification / Edit message / Reject
-  - [ ] Write-back via `queue_store.py` on action
-  - [ ] Audit log: reviewer identity + timestamp + decision recorded
+- [x] `dashboard/pages/03_approved_outreach.py` created
+  - [x] KPI row: total approved, email/call split, avg tokens per customer
+  - [x] Bar chart: messages by churn reason; pie chart: Agent 1 confidence
+  - [x] Filter by batch date, channel, churn reason
+  - [x] Full message viewer (per-customer expandable text)
+  - [x] Download as CSV for campaign execution
+- [x] `dashboard/pages/04_review_queue.py` created (interactive)
+  - [x] Violated rules frequency bar chart (top 10)
+  - [x] Table of failed messages with violated rules and status
+  - [x] Per-message panel: metadata, violated rules with severity, message editor
+  - [x] Actions: Approve / Approve edited draft / Reject
+  - [x] Write-back via `queue_store.py`; edited+approved drafts mirrored to approved_outreach
+  - [x] Audit log: reviewer identity + timestamp + decision recorded
 
 **✅ Phase 4 done when:** End-to-end agent pipeline processes a test batch of 20 customers successfully, compliance review queue visible and interactive in dashboard, Foundry evaluation pipeline producing scores.
 

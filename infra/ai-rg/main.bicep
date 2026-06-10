@@ -34,6 +34,15 @@ module foundry 'foundry.bicep' = {
   }
 }
 
+module aiservices 'aiservices.bicep' = {
+  name: 'aiservices-deploy'
+  params: {
+    location: location
+    environment: environment
+    foundryHubName: foundry.outputs.foundryHubName
+  }
+}
+
 module search 'search.bicep' = {
   name: 'search-deploy'
   params: {
@@ -65,3 +74,8 @@ output foundryProjectPrincipalId string = foundry.outputs.foundryProjectPrincipa
 output searchServiceName string = search.outputs.searchServiceName
 output searchServiceEndpoint string = search.outputs.searchServiceEndpoint
 output keyVaultName string = foundry.outputs.keyVaultName
+output aiServicesName string = aiservices.outputs.aiServicesName
+output aiServicesEndpoint string = aiservices.outputs.aiServicesEndpoint
+// Project endpoint for pipeline.py and azure-ai-projects SDK
+// e.g. https://bankretain-ai-svc-dev-jrkvoy.services.ai.azure.com/api/projects/bankretain-agents-dev
+output projectEndpoint string = aiservices.outputs.projectEndpoint
