@@ -1,8 +1,5 @@
 # BankRetain — Python dependencies
 # Install with: pip install -r requirements.txt
-# ODBC Driver 18 for SQL Server must be installed separately at the OS level:
-#   Mac:   brew install msodbcsql18
-#   Linux: see https://learn.microsoft.com/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server
 
 # ── Azure SDKs ────────────────────────────────────────────────────────────────
 azure-identity>=1.15
@@ -15,7 +12,7 @@ azure-mgmt-eventgrid>=10.3
 pandas>=2.0
 numpy>=1.24
 pyarrow>=13.0
-pyodbc
+python-tds
 scikit-learn>=1.3
 lightgbm>=4.0
 

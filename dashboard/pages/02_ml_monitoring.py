@@ -79,7 +79,7 @@ try:
             return colours.get(val, "")
 
         st.dataframe(
-            df_reg.style.applymap(_style_status, subset=["Status"]),
+            df_reg.style.map(_style_status, subset=["Status"]),
             width="stretch",
             hide_index=True,
         )
