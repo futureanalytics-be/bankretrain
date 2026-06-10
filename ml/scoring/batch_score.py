@@ -19,6 +19,7 @@ Usage:
 """
 
 import argparse
+import datetime
 import io
 import os
 import struct
@@ -264,7 +265,8 @@ if __name__ == "__main__":
                         default=os.environ.get("BANKRETAIN_SQL_SERVER", ""))
     parser.add_argument("--sql-db",          dest="sql_db",
                         default=os.environ.get("BANKRETAIN_SQL_DB", "bankretaindb"))
-    parser.add_argument("--snapshot-date",   dest="snapshot_date",   default="2025-04-01")
+    parser.add_argument("--snapshot-date",   dest="snapshot_date",
+                        default=datetime.date.today().isoformat())
     parser.add_argument("--storage-account", dest="storage_account", default="")
     parser.add_argument("--container",       default="bankretain-batch")
     parser.add_argument("--output-path",     dest="output_path",     default="./output/batch")
