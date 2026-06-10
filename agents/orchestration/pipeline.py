@@ -53,7 +53,7 @@ AGENT1_PROMPT = (PROMPTS_DIR / "agent1_system.md").read_text()
 AGENT2_PROMPT = (PROMPTS_DIR / "agent2_system.md").read_text()
 AGENT3_PROMPT = (PROMPTS_DIR / "agent3_system.md").read_text()
 
-DEPLOYMENT_NAME = "gpt-4.1"
+DEPLOYMENT_NAME = os.environ.get("AZURE_AI_DEPLOYMENT", "gpt-oss-120b")
 BATCH_CSV_NAME  = "high_risk_batch.csv"
 BATCH_CONTAINER = "bankretain-batch"
 

@@ -58,6 +58,29 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = 
 }
 
 // ---------------------------------------------------------------------------
+// gpt-oss-120b deployment
+// Uses AIServices.GlobalStandard quota pool (5000K TPM available) rather than
+// OpenAI.GlobalStandard, which has 0 quota on this subscription.
+// ---------------------------------------------------------------------------
+
+resource gptOss120bDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview' = {
+  parent: aiServices
+  name: 'gpt-oss-120b'
+  sku: {
+    name: 'GlobalStandard'
+    capacity: 10
+  }
+  properties: {
+    model: {
+      format: 'OpenAI-OSS'
+      name: 'gpt-oss-120b'
+      version: '1'
+    }
+    versionUpgradeOption: 'OnceCurrentVersionExpired'
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Foundry project — scopes agents and vector stores to this project
 // ---------------------------------------------------------------------------
 
@@ -71,6 +94,7 @@ resource foundryProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-0
   properties: {
     description: 'BankRetain agent pipeline — churn classification, offer selection, compliance review'
   }
+  dependsOn: [gptOss120bDeployment]
 }
 
 // ---------------------------------------------------------------------------
