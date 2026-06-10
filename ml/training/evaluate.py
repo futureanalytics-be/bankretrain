@@ -89,8 +89,8 @@ def evaluate_and_register(
     print(f"Registered: {MODEL_NAME}  version={registered.version}  status=staging")
     print(f"AML model registry version: {registered.version}")
 
-    # Write the registered version so the pipeline can use it in downstream steps
-    version_file = os.path.join(model_path, "registered_version.txt")
+    # Write the registered version to the working dir (model_path is a read-only input mount)
+    version_file = os.path.join(os.getcwd(), "registered_version.txt")
     with open(version_file, "w") as f:
         f.write(str(registered.version))
 
